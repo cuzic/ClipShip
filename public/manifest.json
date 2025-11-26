@@ -5,9 +5,20 @@
   "description": "Deploy clipboard HTML to Netlify or GitHub Gist instantly",
   "permissions": ["clipboardRead", "storage", "tabs"],
   "host_permissions": ["https://api.netlify.com/*", "https://api.github.com/*"],
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ClipShip"
+    "default_title": "ClipShip",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    }
   },
   "options_ui": {
     "page": "options.html",
