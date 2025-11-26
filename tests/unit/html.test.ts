@@ -125,4 +125,56 @@ describe("processContent", () => {
       expect(result.content).toContain("task-list-item");
     });
   });
+
+  describe("脚注処理", () => {
+    test("should render footnote reference", () => {
+      const content =
+        "# Article\n\nThis is text[^1].\n\n[^1]: Footnote content";
+      const result = processContent(content);
+
+      expect(result.content).toContain("footnote");
+    });
+
+    test("should include footnote styles", () => {
+      const content = "# Test\n\nSome text";
+      const result = processContent(content);
+
+      expect(result.content).toContain(".footnotes");
+    });
+  });
+
+  describe("Emoji 処理", () => {
+    test("should convert emoji shortcodes to unicode", () => {
+      const content = "# Emoji\n\n:smile: :heart:";
+      const result = processContent(content);
+
+      // Emoji should be converted to unicode characters
+      expect(result.content).toContain("😄");
+      expect(result.content).toContain("❤️");
+    });
+
+    test("should keep unknown shortcodes as-is", () => {
+      const content = "# Test\n\n:unknown_emoji_code:";
+      const result = processContent(content);
+
+      expect(result.content).toContain(":unknown_emoji_code:");
+    });
+  });
+
+  describe("取り消し線処理", () => {
+    test("should render strikethrough with ~~text~~", () => {
+      const content = "# Test\n\n~~strikethrough text~~";
+      const result = processContent(content);
+
+      expect(result.content).toContain("<s>");
+      expect(result.content).toContain("</s>");
+    });
+
+    test("should include strikethrough styles", () => {
+      const content = "# Test\n\nSome text";
+      const result = processContent(content);
+
+      expect(result.content).toContain("text-decoration: line-through");
+    });
+  });
 });

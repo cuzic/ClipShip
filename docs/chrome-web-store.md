@@ -29,6 +29,9 @@ Turn your clipboard into a live webpage in seconds! ClipShip is a developer-frie
 • Syntax Highlighting - 20+ programming languages with highlight.js
 • Math Equations - LaTeX math with KaTeX ($...$, $$...$$)
 • Task Lists - GitHub-style checkboxes (- [ ], - [x])
+• Footnotes - Academic-style footnotes ([^1])
+• Emoji - Shortcode conversion (:smile: → 😄)
+• Strikethrough - ~~deleted text~~ support
 • Mermaid Diagrams - Flowcharts, sequence diagrams, ER diagrams, and more
 • Four Hosting Options:
   - Netlify - Permanent hosting with custom domains
@@ -48,6 +51,9 @@ Markdown:
 - Code blocks with syntax highlighting
 - Math equations with KaTeX
 - Task lists with checkboxes
+- Footnotes for references
+- Emoji shortcodes (:smile:)
+- Strikethrough (~~text~~)
 - Links and images
 - Mermaid diagrams
 

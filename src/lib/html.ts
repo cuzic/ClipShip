@@ -6,6 +6,8 @@
 // @ts-expect-error: No type definitions available
 import markdownItKatex from "@iktakahiro/markdown-it-katex";
 import MarkdownIt from "markdown-it";
+import { full as markdownItEmoji } from "markdown-it-emoji";
+import markdownItFootnote from "markdown-it-footnote";
 // @ts-expect-error: No type definitions available
 import markdownItTaskLists from "markdown-it-task-lists";
 import { type ContentInfo, detectContentType } from "./detect";
@@ -155,6 +157,28 @@ ${KATEX_CDN}
   ul.contains-task-list ul.contains-task-list {
     padding-left: 24px;
   }
+  /* Footnote styles */
+  .footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid #ddd;
+    font-size: 0.9em;
+  }
+  .footnotes-list {
+    padding-left: 1.5em;
+  }
+  .footnote-ref {
+    text-decoration: none;
+  }
+  .footnote-backref {
+    text-decoration: none;
+    margin-left: 4px;
+  }
+  /* Strikethrough */
+  s, del {
+    text-decoration: line-through;
+    color: #666;
+  }
 </style>
 `;
 
@@ -245,6 +269,12 @@ function createMarkdownIt() {
     label: true,
     labelAfter: true,
   });
+
+  // 脚注プラグイン
+  md.use(markdownItFootnote);
+
+  // Emoji プラグイン
+  md.use(markdownItEmoji);
 
   return md;
 }
