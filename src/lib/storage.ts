@@ -3,7 +3,7 @@
  * トークンの保存・取得を行う
  */
 
-export type StorageKeys = "netlifyToken" | "githubToken" | "netlifySiteId";
+type StorageKeys = "netlifyToken" | "githubToken" | "netlifySiteId";
 
 /**
  * ストレージからデータを取得する

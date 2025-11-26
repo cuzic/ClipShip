@@ -24,7 +24,7 @@ export function convertToGistHackUrl(rawUrl: string): string {
  * @param description - Gistの説明
  * @returns Gist作成結果
  */
-export async function createGist(
+async function createGist(
   token: string,
   processed: ProcessedContent,
   description = "Deployed via ClipShip",

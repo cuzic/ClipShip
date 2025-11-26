@@ -246,7 +246,7 @@ async function uploadRequiredFiles(
 /**
  * デプロイ結果の型
  */
-export interface DeployResult {
+interface DeployResult {
   siteId: string;
   siteName: string;
   deployUrl: string;
