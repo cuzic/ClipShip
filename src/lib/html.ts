@@ -3,7 +3,7 @@
  * クリップボードのテキストを完全なHTML構造に埋め込む
  */
 
-import { Marked, marked } from "marked";
+import MarkdownIt from "markdown-it";
 import { type ContentInfo, detectContentType } from "./detect";
 
 export interface ProcessedContent {
@@ -45,9 +45,40 @@ ${content}
 }
 
 /**
+ * highlight.js CDN (シンタックスハイライト)
+ */
+const HIGHLIGHT_JS_CDN = `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/typescript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/java.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/sql.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/bash.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/json.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/markdown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/go.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/rust.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/ruby.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/php.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/c.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/cpp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/csharp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/kotlin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/swift.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/dockerfile.min.js"></script>
+<script>hljs.highlightAll();</script>
+`;
+
+/**
  * Markdown スタイル
  */
 const MARKDOWN_STYLES = `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -58,16 +89,17 @@ const MARKDOWN_STYLES = `
     color: #333;
   }
   pre {
-    background: #f4f4f4;
+    background: #f6f8fa;
     padding: 16px;
     overflow-x: auto;
-    border-radius: 4px;
+    border-radius: 6px;
   }
   code {
-    background: #f4f4f4;
+    background: #f6f8fa;
     padding: 2px 6px;
     border-radius: 3px;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.9em;
   }
   pre code {
     background: none;
@@ -170,29 +202,42 @@ function isMermaidCode(text: string, lang?: string): boolean {
 }
 
 /**
- * Mermaid 対応の marked インスタンスを作成
+ * 標準の markdown-it インスタンスを作成
  */
-function createMermaidMarked() {
-  const mermaidMarked = new Marked();
-
-  mermaidMarked.use({
-    renderer: {
-      code({ text, lang }: { text: string; lang?: string }) {
-        if (isMermaidCode(text, lang)) {
-          return `<pre class="mermaid">${text}</pre>`;
-        }
-        // デフォルトのコードブロック処理
-        const escaped = text
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-        const langClass = lang ? ` class="language-${lang}"` : "";
-        return `<pre><code${langClass}>${escaped}</code></pre>`;
-      },
-    },
+function createMarkdownIt() {
+  return new MarkdownIt({
+    html: false, // XSS 対策: HTML タグを無効化
+    linkify: true,
+    typographer: true,
   });
+}
 
-  return mermaidMarked;
+/**
+ * Mermaid 対応の markdown-it インスタンスを作成
+ */
+function createMermaidMarkdownIt() {
+  const md = createMarkdownIt();
+
+  // コードブロックのレンダラーをカスタマイズ
+  const defaultFence =
+    md.renderer.rules.fence ||
+    ((tokens, idx, options, _env, self) =>
+      self.renderToken(tokens, idx, options));
+
+  md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const info = token.info ? token.info.trim() : "";
+    const content = token.content;
+
+    if (isMermaidCode(content, info)) {
+      // Mermaid コンテンツはエスケープしない（Mermaid.js が解釈するため）
+      return `<pre class="mermaid">${content}</pre>\n`;
+    }
+
+    return defaultFence(tokens, idx, options, env, self);
+  };
+
+  return md;
 }
 
 /**
@@ -201,10 +246,9 @@ function createMermaidMarked() {
 function processMarkdown(content: string): string {
   const hasMermaid = containsMermaid(content);
 
-  // Mermaid がある場合は専用の marked インスタンスを使用
-  const htmlContent = hasMermaid
-    ? createMermaidMarked().parse(content)
-    : marked(content);
+  // Mermaid がある場合は専用の markdown-it インスタンスを使用
+  const md = hasMermaid ? createMermaidMarkdownIt() : createMarkdownIt();
+  const htmlContent = md.render(content);
 
   const mermaidScript = hasMermaid ? MERMAID_SCRIPT : "";
 
@@ -218,6 +262,7 @@ ${MARKDOWN_STYLES}
 </head>
 <body>
 ${htmlContent}
+${HIGHLIGHT_JS_CDN}
 ${mermaidScript}
 </body>
 </html>`;
