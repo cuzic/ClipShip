@@ -30,9 +30,10 @@ function isHtml(content: string): boolean {
     return true;
   }
 
-  // 主要な HTML タグが含まれている（属性付きも対応）
+  // 主要な HTML 構造タグが含まれている（属性付きも対応）
+  // script, style は危険なタグなので除外（Markdown 内に埋め込まれている可能性がある）
   const htmlTags =
-    /<(?:html|head|body|div|span|p|h[1-6]|ul|ol|li|table|tr|td|th|form|input|button|script|style|link|meta|header|footer|nav|section|article|aside|main)[\s>]/i;
+    /<(?:html|head|body|div|span|p|h[1-6]|ul|ol|li|table|tr|td|th|form|input|button|link|meta|header|footer|nav|section|article|aside|main)[\s>]/i;
   if (htmlTags.test(content)) {
     return true;
   }
