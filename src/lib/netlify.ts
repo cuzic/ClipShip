@@ -1,49 +1,29 @@
 /**
  * Netlify API モジュール
- * ZIPデプロイを行う
+ * File Digest API を使用してデプロイを行う
  */
 
-import { strToU8, zipSync } from "fflate";
 import ky, { HTTPError } from "ky";
 import { nanoid } from "nanoid";
-import {
-  type NetlifyDeployResponse,
-  NetlifyDeployResponseSchema,
-  type NetlifySite,
-  NetlifySiteSchema,
-} from "../schemas/netlify";
+import { type NetlifySite, NetlifySiteSchema } from "../schemas/netlify";
 import { processContent } from "./html";
 import { getStorageData, setStorageData } from "./storage";
 
 const NETLIFY_API_URL = "https://api.netlify.com/api/v1/sites";
+const NETLIFY_DEPLOYS_API_URL = "https://api.netlify.com/api/v1/deploys";
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 60;
 const CLIPSHIP_SITE_PREFIX = "clipship-";
 
 /**
- * Netlify _headers ファイルを生成
+ * 文字列の SHA1 ハッシュを計算
  */
-function createHeadersFile(path: string, mimeType: string): string {
-  return `/${path}
-  Content-Type: ${mimeType}; charset=UTF-8
-`;
-}
-
-/**
- * コンテンツからZIPファイルを生成する（サブディレクトリ付き）
- */
-function createZip(
-  content: string,
-  filename: string,
-  mimeType: string,
-  subdir: string,
-): Uint8Array {
-  const filePath = `${subdir}/${filename}`;
-  const headersPath = `${subdir}/_headers`;
-  return zipSync({
-    [filePath]: strToU8(content),
-    [headersPath]: strToU8(createHeadersFile(filename, mimeType)),
-  });
+async function sha1(content: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -62,9 +42,19 @@ const DeploySchema = z.object({
   state: z.string(),
   ssl_url: z.string().optional(),
   url: z.string().optional(),
+  required: z.array(z.string()).optional(),
 });
 
 type Deploy = z.infer<typeof DeploySchema>;
+
+/**
+ * ファイル情報の型
+ */
+interface FileInfo {
+  path: string;
+  content: string;
+  hash: string;
+}
 
 /**
  * 全サイトを取得
@@ -154,22 +144,18 @@ async function getOrCreateClipShipSite(token: string): Promise<NetlifySite> {
 }
 
 /**
- * 最新のデプロイ状態を取得
+ * デプロイの状態を取得
  */
-async function getLatestDeploy(token: string, siteId: string): Promise<Deploy> {
+async function getDeploy(token: string, deployId: string): Promise<Deploy> {
   const response = await ky
-    .get(`${NETLIFY_API_URL}/${siteId}/deploys?per_page=1`, {
+    .get(`${NETLIFY_DEPLOYS_API_URL}/${deployId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
     .json();
 
-  const deploys = z.array(DeploySchema).parse(response);
-  if (deploys.length === 0) {
-    throw new Error("No deploys found");
-  }
-  return deploys[0];
+  return DeploySchema.parse(response);
 }
 
 /**
@@ -177,11 +163,11 @@ async function getLatestDeploy(token: string, siteId: string): Promise<Deploy> {
  */
 async function waitForDeployReady(
   token: string,
-  siteId: string,
+  deployId: string,
   onProgress?: (state: string) => void,
 ): Promise<Deploy> {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const deploy = await getLatestDeploy(token, siteId);
+    const deploy = await getDeploy(token, deployId);
 
     if (onProgress) {
       onProgress(deploy.state);
@@ -202,6 +188,62 @@ async function waitForDeployReady(
 }
 
 /**
+ * File Digest API でデプロイを作成
+ */
+async function createDigestDeploy(
+  token: string,
+  siteId: string,
+  files: FileInfo[],
+): Promise<Deploy> {
+  // ファイルパスとハッシュのマッピングを作成
+  const filesDigest: Record<string, string> = {};
+  for (const file of files) {
+    filesDigest[`/${file.path}`] = file.hash;
+  }
+
+  const response = await ky
+    .post(`${NETLIFY_API_URL}/${siteId}/deploys`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      json: {
+        files: filesDigest,
+      },
+    })
+    .json();
+
+  return DeploySchema.parse(response);
+}
+
+/**
+ * 必要なファイルをアップロード
+ */
+async function uploadRequiredFiles(
+  token: string,
+  deployId: string,
+  files: FileInfo[],
+  requiredHashes: string[],
+): Promise<void> {
+  const requiredSet = new Set(requiredHashes);
+
+  for (const file of files) {
+    if (requiredSet.has(file.hash)) {
+      await ky.put(
+        `${NETLIFY_DEPLOYS_API_URL}/${deployId}/files/${file.path}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/octet-stream",
+          },
+          body: file.content,
+        },
+      );
+    }
+  }
+}
+
+/**
  * デプロイ結果の型
  */
 export interface DeployResult {
@@ -214,6 +256,7 @@ export interface DeployResult {
  * Netlifyにデプロイする
  * - 初回は clipship-{nanoid} サイトを作成
  * - 2回目以降は同じサイトに {nanoid}/index.html としてデプロイ
+ * - File Digest API を使用し、既存ファイルを保持しながら新規ファイルを追加
  * @param token - Netlify Personal Access Token
  * @param content - クリップボードから取得したコンテンツ
  * @param onProgress - 進捗コールバック
@@ -236,36 +279,40 @@ export async function deployToNetlify(
     const subdir = nanoid();
 
     const processed = processContent(content);
-    const zipData = createZip(
-      processed.content,
-      processed.filename,
-      processed.mimeType,
-      subdir,
-    );
-    const blob = new Blob([zipData], { type: "application/zip" });
+
+    // ファイル情報を準備
+    const filePath = `${subdir}/${processed.filename}`;
+    const fileHash = await sha1(processed.content);
+
+    const files: FileInfo[] = [
+      {
+        path: filePath,
+        content: processed.content,
+        hash: fileHash,
+      },
+    ];
 
     if (onProgress) {
-      onProgress("Uploading...");
+      onProgress("Creating deploy...");
     }
 
-    // 既存サイトにデプロイ
-    const response = await ky
-      .post(`${NETLIFY_API_URL}/${site.id}/deploys`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: blob,
-      })
-      .json();
+    // File Digest API でデプロイを作成
+    const deploy = await createDigestDeploy(token, site.id, files);
 
-    const deployResponse = NetlifyDeployResponseSchema.parse(response);
+    // 必要なファイルをアップロード
+    if (deploy.required && deploy.required.length > 0) {
+      if (onProgress) {
+        onProgress("Uploading files...");
+      }
+      await uploadRequiredFiles(token, deploy.id, files, deploy.required);
+    }
 
     if (onProgress) {
       onProgress("Processing...");
     }
 
     // デプロイが ready になるまでポーリング
-    await waitForDeployReady(token, site.id, (state) => {
+    await waitForDeployReady(token, deploy.id, (state) => {
       if (onProgress) {
         onProgress(`Processing (${state})...`);
       }
