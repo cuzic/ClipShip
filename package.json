@@ -22,7 +22,6 @@
     "@types/markdown-it": "^14.1.2",
     "bun-types": "^1.1.0",
     "chrome-webstore-upload-cli": "^3.3.0",
-    "crx": "^5.0.1",
     "knip": "^5.33.0",
     "lefthook": "^1.7.0",
     "sinon-chrome": "^3.0.1",
