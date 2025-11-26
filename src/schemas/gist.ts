@@ -4,7 +4,7 @@ import { z } from "zod";
  * Gist ファイルのスキーマ
  * OpenAPI: additionalProperties.nullable: true のため nullable 対応
  */
-export const GistFileSchema = z
+const GistFileSchema = z
   .object({
     filename: z.string().optional(),
     type: z.string().optional(),
@@ -17,12 +17,12 @@ export const GistFileSchema = z
   })
   .nullable();
 
-export type GistFile = z.infer<typeof GistFileSchema>;
+type GistFile = z.infer<typeof GistFileSchema>;
 
 /**
  * Gist オーナーのスキーマ (simple-user の主要フィールド)
  */
-export const GistOwnerSchema = z.object({
+const GistOwnerSchema = z.object({
   login: z.string(),
   id: z.number(),
   node_id: z.string().optional(),
@@ -32,7 +32,7 @@ export const GistOwnerSchema = z.object({
   type: z.string().optional(),
 });
 
-export type GistOwner = z.infer<typeof GistOwnerSchema>;
+type GistOwner = z.infer<typeof GistOwnerSchema>;
 
 /**
  * GitHub Gist API レスポンスのスキーマ
@@ -60,21 +60,3 @@ export const GistResponseSchema = z.object({
 
 export type GistResponse = z.infer<typeof GistResponseSchema>;
 
-/**
- * GitHub API エラーレスポンスのスキーマ
- */
-export const GistErrorResponseSchema = z.object({
-  message: z.string(),
-  errors: z
-    .array(
-      z.object({
-        resource: z.string(),
-        code: z.string(),
-        field: z.string().optional(),
-      }),
-    )
-    .optional(),
-  documentation_url: z.string().optional(),
-});
-
-export type GistErrorResponse = z.infer<typeof GistErrorResponseSchema>;
