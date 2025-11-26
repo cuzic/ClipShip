@@ -20,6 +20,7 @@ export const NetlifyDeployResponseSchema = z.object({
       state: z.string(),
       url: z.string(),
     })
+    .nullable()
     .optional(),
 });
 
