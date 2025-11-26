@@ -5,7 +5,7 @@
 
 import ky, { HTTPError } from "ky";
 import { type GistResponse, GistResponseSchema } from "../schemas/gist";
-import { createHtml } from "./html";
+import { type ProcessedContent, processContent } from "./html";
 
 const GITHUB_GIST_API_URL = "https://api.github.com/gists";
 
@@ -20,17 +20,15 @@ export function convertToGistHackUrl(rawUrl: string): string {
 /**
  * GitHub Gistを作成する
  * @param token - GitHub Personal Access Token (gist scope)
- * @param content - クリップボードから取得したHTMLコンテンツ
+ * @param processed - 処理済みコンテンツ
  * @param description - Gistの説明
  * @returns Gist作成結果
  */
 export async function createGist(
   token: string,
-  content: string,
+  processed: ProcessedContent,
   description = "Deployed via ClipShip",
 ): Promise<GistResponse> {
-  const html = createHtml(content);
-
   try {
     const response = await ky
       .post(GITHUB_GIST_API_URL, {
@@ -43,8 +41,8 @@ export async function createGist(
           description,
           public: true, // GistHack を使うため public 必須
           files: {
-            "index.html": {
-              content: html,
+            [processed.filename]: {
+              content: processed.content,
             },
           },
         },
@@ -75,15 +73,16 @@ export async function createGist(
 /**
  * Gistにデプロイし、GistHack URLを取得する
  * @param token - GitHub Personal Access Token
- * @param content - クリップボードから取得したHTMLコンテンツ
+ * @param content - クリップボードから取得したコンテンツ
  * @returns GistHack URL
  */
 export async function deployToGist(
   token: string,
   content: string,
 ): Promise<string> {
-  const gist = await createGist(token, content);
-  const file = gist.files["index.html"];
+  const processed = processContent(content);
+  const gist = await createGist(token, processed);
+  const file = gist.files[processed.filename];
   if (!file || !file.raw_url) {
     throw new Error("Failed to get raw_url from created gist");
   }
