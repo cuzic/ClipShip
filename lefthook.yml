@@ -2,11 +2,28 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      run: bun run lint
+      run: mise exec -- bun run lint
     format:
-      run: bun run format
+      run: mise exec -- bun run format
+    typecheck:
+      run: mise exec -- bun run tsc --noEmit
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        MSG=$(cat "{1}")
+        if ! echo "$MSG" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|deps|assets)(\(.+\))?: .+"; then
+          echo "❌ Commit message must follow Conventional Commits format:"
+          echo "   <type>(<scope>): <description>"
+          echo ""
+          echo "   Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, deps, assets"
+          echo ""
+          echo "   Your message: $MSG"
+          exit 1
+        fi
 
 pre-push:
   commands:
     test:
-      run: bun run test
+      run: mise exec -- bun run test

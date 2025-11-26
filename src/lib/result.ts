@@ -3,7 +3,7 @@
  * neverthrow をラップして使いやすくする
  */
 
-import { Result, ok, err, ResultAsync } from "neverthrow";
+import { Result, ResultAsync, err, ok } from "neverthrow";
 import type { DeployError } from "./errors";
 
 // Re-export for convenience
@@ -33,7 +33,7 @@ export type AsyncDeployResult = ResultAsync<DeploySuccess, DeployError>;
  */
 export function fromPromise<T, E extends Error>(
   promise: Promise<T>,
-  errorFn: (e: unknown) => E
+  errorFn: (e: unknown) => E,
 ): ResultAsync<T, E> {
   return ResultAsync.fromPromise(promise, errorFn);
 }
@@ -41,8 +41,6 @@ export function fromPromise<T, E extends Error>(
 /**
  * 複数の Result を結合
  */
-export function combine<T, E>(
-  results: Result<T, E>[]
-): Result<T[], E> {
+export function combine<T, E>(results: Result<T, E>[]): Result<T[], E> {
   return Result.combine(results);
 }

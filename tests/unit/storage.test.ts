@@ -3,17 +3,17 @@
  * sinon-chrome を使用してモック
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import chrome from "sinon-chrome";
 import {
   getMultipleStorageData,
   getStorageData,
   setMultipleStorageData,
   setStorageData,
 } from "@/lib/storage";
+import chrome from "sinon-chrome";
 
 describe("Chrome Storage", () => {
   beforeEach(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: sinon-chrome mock requires any cast
     (globalThis as any).chrome = chrome;
     chrome.storage.sync.get.flush();
     chrome.storage.sync.set.flush();
@@ -62,7 +62,7 @@ describe("Chrome Storage", () => {
       await setStorageData("netlifyToken", "new-token");
       expect(chrome.storage.sync.set.calledOnce).toBe(true);
       expect(
-        chrome.storage.sync.set.calledWith({ netlifyToken: "new-token" })
+        chrome.storage.sync.set.calledWith({ netlifyToken: "new-token" }),
       ).toBe(true);
     });
 
@@ -71,7 +71,7 @@ describe("Chrome Storage", () => {
 
       await setStorageData("githubToken", "new-github-token");
       expect(
-        chrome.storage.sync.set.calledWith({ githubToken: "new-github-token" })
+        chrome.storage.sync.set.calledWith({ githubToken: "new-github-token" }),
       ).toBe(true);
     });
 
@@ -80,7 +80,7 @@ describe("Chrome Storage", () => {
 
       await setStorageData("netlifySiteId", "new-site-id");
       expect(
-        chrome.storage.sync.set.calledWith({ netlifySiteId: "new-site-id" })
+        chrome.storage.sync.set.calledWith({ netlifySiteId: "new-site-id" }),
       ).toBe(true);
     });
   });
@@ -139,7 +139,7 @@ describe("Chrome Storage", () => {
         chrome.storage.sync.set.calledWith({
           netlifyToken: "netlify-new",
           githubToken: "github-new",
-        })
+        }),
       ).toBe(true);
     });
 
@@ -153,7 +153,7 @@ describe("Chrome Storage", () => {
       expect(
         chrome.storage.sync.set.calledWith({
           netlifyToken: "only-netlify",
-        })
+        }),
       ).toBe(true);
     });
   });

@@ -20,7 +20,7 @@ describe("NetlifySiteSchema", () => {
     expect(result.url).toBe("https://clipship-abc123.netlify.app");
     expect(result.ssl_url).toBe("https://clipship-abc123.netlify.app");
     expect(result.admin_url).toBe(
-      "https://app.netlify.com/sites/clipship-abc123"
+      "https://app.netlify.com/sites/clipship-abc123",
     );
   });
 

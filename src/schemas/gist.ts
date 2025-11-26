@@ -59,4 +59,3 @@ export const GistResponseSchema = z.object({
 });
 
 export type GistResponse = z.infer<typeof GistResponseSchema>;
-

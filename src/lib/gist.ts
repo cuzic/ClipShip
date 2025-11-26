@@ -3,17 +3,17 @@
  * Gist作成とGistHack URL変換を行う
  */
 
+import { type GistResponse, GistResponseSchema } from "@/schemas/gist";
 import ky, { HTTPError } from "ky";
 import { ResultAsync } from "neverthrow";
-import { type GistResponse, GistResponseSchema } from "@/schemas/gist";
-import { type ProcessedContent, processContent } from "./html";
 import {
   ApiError,
   AuthenticationError,
+  type DeployError,
   PermissionError,
   ValidationError,
-  type DeployError,
 } from "./errors";
+import { type ProcessedContent, processContent } from "./html";
 
 const GITHUB_GIST_API_URL = "https://api.github.com/gists";
 
@@ -69,7 +69,7 @@ interface GistDeployResult {
 function createGist(
   token: string,
   processed: ProcessedContent,
-  description = "Deployed via ClipShip"
+  description = "Deployed via ClipShip",
 ): ResultAsync<GistResponse, DeployError> {
   return ResultAsync.fromPromise(
     ky
@@ -91,7 +91,7 @@ function createGist(
       })
       .json()
       .then((response) => GistResponseSchema.parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -100,7 +100,7 @@ function createGist(
  */
 export function deployToGistResult(
   token: string,
-  content: string
+  content: string,
 ): ResultAsync<GistDeployResult, DeployError> {
   const processed = processContent(content);
 
@@ -109,7 +109,7 @@ export function deployToGistResult(
     if (!file || !file.raw_url) {
       return ResultAsync.fromPromise(
         Promise.reject(ValidationError.invalidResponse("Missing raw_url")),
-        () => ValidationError.invalidResponse("Missing raw_url")
+        () => ValidationError.invalidResponse("Missing raw_url"),
       );
     }
 
@@ -118,7 +118,7 @@ export function deployToGistResult(
         gistId: gist.id,
         gistUrl: gist.html_url,
         deployUrl: convertToGistHackUrl(file.raw_url),
-      })
+      }),
     );
   });
 }
@@ -129,7 +129,7 @@ export function deployToGistResult(
  */
 export async function deployToGist(
   token: string,
-  content: string
+  content: string,
 ): Promise<string> {
   const result = await deployToGistResult(token, content);
 

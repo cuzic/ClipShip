@@ -3,18 +3,14 @@
  * File Digest API を使用してデプロイを行う
  */
 
+import { type NetlifySite, NetlifySiteSchema } from "@/schemas/netlify";
 import ky, { HTTPError } from "ky";
 import { nanoid } from "nanoid";
-import { z } from "zod";
 import { ResultAsync, err, ok } from "neverthrow";
-import { type NetlifySite, NetlifySiteSchema } from "@/schemas/netlify";
+import { z } from "zod";
+import { ApiError, AuthenticationError, type DeployError } from "./errors";
 import { processContent } from "./html";
 import { getStorageData, setStorageData } from "./storage";
-import {
-  ApiError,
-  AuthenticationError,
-  type DeployError,
-} from "./errors";
 
 const NETLIFY_API_URL = "https://api.netlify.com/api/v1/sites";
 const NETLIFY_DEPLOYS_API_URL = "https://api.netlify.com/api/v1/deploys";
@@ -106,7 +102,7 @@ function listSites(token: string): ResultAsync<NetlifySite[], DeployError> {
       })
       .json()
       .then((response) => z.array(NetlifySiteSchema).parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -114,11 +110,11 @@ function listSites(token: string): ResultAsync<NetlifySite[], DeployError> {
  * ClipShip 用のサイトを検索
  */
 function findClipShipSite(
-  token: string
+  token: string,
 ): ResultAsync<NetlifySite | null, DeployError> {
   return listSites(token).map((sites) => {
     const clipshipSite = sites.find((site) =>
-      site.name.startsWith(CLIPSHIP_SITE_PREFIX)
+      site.name.startsWith(CLIPSHIP_SITE_PREFIX),
     );
     return clipshipSite ?? null;
   });
@@ -129,7 +125,7 @@ function findClipShipSite(
  */
 function getSite(
   token: string,
-  siteId: string
+  siteId: string,
 ): ResultAsync<NetlifySite, DeployError> {
   return ResultAsync.fromPromise(
     ky
@@ -138,14 +134,16 @@ function getSite(
       })
       .json()
       .then((response) => NetlifySiteSchema.parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
 /**
  * 新規 ClipShip サイトを作成
  */
-function createClipShipSite(token: string): ResultAsync<NetlifySite, DeployError> {
+function createClipShipSite(
+  token: string,
+): ResultAsync<NetlifySite, DeployError> {
   const siteName = `${CLIPSHIP_SITE_PREFIX}${nanoid()}`;
 
   return ResultAsync.fromPromise(
@@ -159,7 +157,7 @@ function createClipShipSite(token: string): ResultAsync<NetlifySite, DeployError
       })
       .json()
       .then((response) => NetlifySiteSchema.parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -167,7 +165,7 @@ function createClipShipSite(token: string): ResultAsync<NetlifySite, DeployError
  * ClipShip サイトを取得または作成
  */
 async function getOrCreateClipShipSite(
-  token: string
+  token: string,
 ): Promise<ResultAsync<NetlifySite, DeployError>> {
   // 1. storage から取得
   const storedSiteId = await getStorageData("netlifySiteId");
@@ -183,7 +181,9 @@ async function getOrCreateClipShipSite(
   const existingSiteResult = await findClipShipSite(token);
   if (existingSiteResult.isOk() && existingSiteResult.value) {
     await setStorageData("netlifySiteId", existingSiteResult.value.id);
-    return ResultAsync.fromSafePromise(Promise.resolve(existingSiteResult.value));
+    return ResultAsync.fromSafePromise(
+      Promise.resolve(existingSiteResult.value),
+    );
   }
 
   // 3. 新規作成
@@ -198,7 +198,7 @@ async function getOrCreateClipShipSite(
  */
 function getDeploy(
   token: string,
-  deployId: string
+  deployId: string,
 ): ResultAsync<Deploy, DeployError> {
   return ResultAsync.fromPromise(
     ky
@@ -207,7 +207,7 @@ function getDeploy(
       })
       .json()
       .then((response) => DeploySchema.parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -217,14 +217,14 @@ function getDeploy(
 async function waitForDeployReady(
   token: string,
   deployId: string,
-  onProgress?: (state: string) => void
+  onProgress?: (state: string) => void,
 ): Promise<ResultAsync<Deploy, DeployError>> {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
     const deployResult = await getDeploy(token, deployId);
 
     if (deployResult.isErr()) {
       return ResultAsync.fromSafePromise(
-        Promise.resolve(deployResult as unknown as Deploy)
+        Promise.resolve(deployResult as unknown as Deploy),
       ).mapErr(() => deployResult.error);
     }
 
@@ -241,16 +241,15 @@ async function waitForDeployReady(
     if (deploy.state === "error") {
       return ResultAsync.fromPromise(
         Promise.reject(ApiError.deployFailed()),
-        () => ApiError.deployFailed()
+        () => ApiError.deployFailed(),
       );
     }
 
     await sleep(POLL_INTERVAL_MS);
   }
 
-  return ResultAsync.fromPromise(
-    Promise.reject(ApiError.deployTimeout()),
-    () => ApiError.deployTimeout()
+  return ResultAsync.fromPromise(Promise.reject(ApiError.deployTimeout()), () =>
+    ApiError.deployTimeout(),
   );
 }
 
@@ -260,7 +259,7 @@ async function waitForDeployReady(
 function createDigestDeploy(
   token: string,
   siteId: string,
-  files: FileInfo[]
+  files: FileInfo[],
 ): ResultAsync<Deploy, DeployError> {
   const filesDigest: Record<string, string> = {};
   for (const file of files) {
@@ -278,7 +277,7 @@ function createDigestDeploy(
       })
       .json()
       .then((response) => DeploySchema.parse(response)),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -289,7 +288,7 @@ function uploadRequiredFiles(
   token: string,
   deployId: string,
   files: FileInfo[],
-  requiredHashes: string[]
+  requiredHashes: string[],
 ): ResultAsync<void, DeployError> {
   const requiredSet = new Set(requiredHashes);
 
@@ -302,12 +301,12 @@ function uploadRequiredFiles(
           "Content-Type": "application/octet-stream",
         },
         body: file.content,
-      })
+      }),
     );
 
   return ResultAsync.fromPromise(
     Promise.all(uploadPromises).then(() => undefined),
-    mapUnknownError
+    mapUnknownError,
   );
 }
 
@@ -317,7 +316,7 @@ function uploadRequiredFiles(
 export async function deployToNetlifyResult(
   token: string,
   content: string,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<ResultAsync<NetlifyDeployResult, DeployError>> {
   if (onProgress) {
     onProgress("Preparing site...");
@@ -330,7 +329,7 @@ export async function deployToNetlifyResult(
   if (siteResult.isErr()) {
     return ResultAsync.fromPromise(
       Promise.reject(siteResult.error),
-      () => siteResult.error
+      () => siteResult.error,
     );
   }
 
@@ -362,7 +361,7 @@ export async function deployToNetlifyResult(
   if (deployResult.isErr()) {
     return ResultAsync.fromPromise(
       Promise.reject(deployResult.error),
-      () => deployResult.error
+      () => deployResult.error,
     );
   }
 
@@ -377,12 +376,12 @@ export async function deployToNetlifyResult(
       token,
       deploy.id,
       files,
-      deploy.required
+      deploy.required,
     );
     if (uploadResult.isErr()) {
       return ResultAsync.fromPromise(
         Promise.reject(uploadResult.error),
-        () => uploadResult.error
+        () => uploadResult.error,
       );
     }
   }
@@ -392,18 +391,22 @@ export async function deployToNetlifyResult(
   }
 
   // デプロイが ready になるまでポーリング
-  const readyResultAsync = await waitForDeployReady(token, deploy.id, (state) => {
-    if (onProgress) {
-      onProgress(`Processing (${state})...`);
-    }
-  });
+  const readyResultAsync = await waitForDeployReady(
+    token,
+    deploy.id,
+    (state) => {
+      if (onProgress) {
+        onProgress(`Processing (${state})...`);
+      }
+    },
+  );
 
   const readyResult = await readyResultAsync;
 
   if (readyResult.isErr()) {
     return ResultAsync.fromPromise(
       Promise.reject(readyResult.error),
-      () => readyResult.error
+      () => readyResult.error,
     );
   }
 
@@ -416,7 +419,7 @@ export async function deployToNetlifyResult(
       siteId: site.id,
       siteName: site.name,
       deployUrl,
-    })
+    }),
   );
 }
 
@@ -427,7 +430,7 @@ export async function deployToNetlifyResult(
 export async function deployToNetlify(
   token: string,
   content: string,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<NetlifyDeployResult> {
   const resultAsync = await deployToNetlifyResult(token, content, onProgress);
   const result = await resultAsync;

@@ -36,7 +36,7 @@ describe("GistResponseSchema", () => {
     expect(result.id).toBe("abc123");
     expect(result.html_url).toBe("https://gist.github.com/abc123");
     expect(result.files["index.html"]?.raw_url).toContain(
-      "gist.githubusercontent.com"
+      "gist.githubusercontent.com",
     );
   });
 

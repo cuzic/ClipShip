@@ -29,7 +29,7 @@ export class AuthenticationError extends AppError {
 
   static invalidToken(service: "Netlify" | "GitHub"): AuthenticationError {
     return new AuthenticationError(
-      `Authentication failed. Check your ${service} token.`
+      `Authentication failed. Check your ${service} token.`,
     );
   }
 }
@@ -60,7 +60,7 @@ export class ValidationError extends AppError {
 
   static invalidResponse(detail?: string): ValidationError {
     return new ValidationError(
-      detail ? `Invalid response: ${detail}` : "Invalid response from API."
+      detail ? `Invalid response: ${detail}` : "Invalid response from API.",
     );
   }
 }
@@ -97,7 +97,10 @@ export class ApiError extends AppError {
   }
 
   static fromStatus(statusCode: number, message?: string): ApiError {
-    return new ApiError(message || `API error (status: ${statusCode})`, statusCode);
+    return new ApiError(
+      message || `API error (status: ${statusCode})`,
+      statusCode,
+    );
   }
 
   static deployFailed(): ApiError {
