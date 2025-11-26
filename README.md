@@ -1,15 +1,18 @@
 # ClipShip
 
-クリップボードの内容を Netlify または GitHub Gist にワンクリックでデプロイする Chrome 拡張機能です。
+クリップボードの内容を各種ホスティングサービスにワンクリックでデプロイする Chrome 拡張機能です。
 
 ## 機能
 
+- **1クリックデプロイ**: Options でデフォルトプロバイダーを設定し、ワンクリックでデプロイ
 - **コンテンツタイプの自動検出**: HTML、Markdown、プレーンテキストを自動判定
 - **Markdown レンダリング**: markdown-it によるレンダリング
 - **シンタックスハイライト**: highlight.js による 20 以上の言語のコードハイライト
 - **Mermaid ダイアグラム**: Mermaid 記法によるフローチャート、シーケンス図などの描画
-- **2 つのデプロイ先**:
+- **4 つのデプロイ先**:
   - **Netlify**: 独自ドメインでホスティング（File Digest API で増分デプロイ）
+  - **Vercel**: 高速な Edge ネットワークでホスティング
+  - **Cloudflare Pages**: グローバル CDN でホスティング
   - **GitHub Gist**: GistHack 経由で HTML プレビュー
 - **XSS 対策**: Markdown 内の HTML タグを無効化
 
@@ -40,15 +43,18 @@ bun run build
 ### 初期設定
 
 1. 拡張機能のアイコンを右クリック → 「オプション」
-2. 使用するサービスの API トークンを設定:
+2. デフォルトのデプロイ先を選択（Netlify / Vercel / Cloudflare Pages / GitHub Gist）
+3. 選択したサービスの API トークンを設定:
    - **Netlify**: [Personal Access Token](https://app.netlify.com/user/applications#personal-access-tokens) を取得
-   - **GitHub**: `gist` スコープを持つ [Personal Access Token](https://github.com/settings/tokens) を取得
+   - **Vercel**: [Personal Access Token](https://vercel.com/account/tokens) を取得
+   - **Cloudflare Pages**: [API Token](https://dash.cloudflare.com/profile/api-tokens) と Account ID を取得
+   - **GitHub Gist**: `gist` スコープを持つ [Personal Access Token](https://github.com/settings/tokens) を取得
 
 ### デプロイ
 
 1. デプロイしたい HTML / Markdown / テキストをクリップボードにコピー
 2. 拡張機能のアイコンをクリック
-3. 「Deploy to Netlify」または「Deploy to Gist」ボタンをクリック
+3. 「Deploy to [プロバイダー名]」ボタンをクリック（デフォルトプロバイダーが表示されます）
 4. デプロイ完了後、新しいタブで URL が開き、クリップボードにも URL がコピーされます
 
 ## サポートするコンテンツ

@@ -11,7 +11,7 @@ ClipShip
 ### 短い説明 (132文字以内)
 
 ```
-Deploy clipboard content to Netlify or GitHub Gist instantly. Supports HTML, Markdown with syntax highlighting, and Mermaid diagrams.
+One-click deploy clipboard to Netlify, Vercel, Cloudflare Pages, or Gist. Supports HTML, Markdown, syntax highlighting, and Mermaid.
 ```
 
 ### 詳細説明
@@ -19,16 +19,20 @@ Deploy clipboard content to Netlify or GitHub Gist instantly. Supports HTML, Mar
 ```
 ClipShip - Instant Clipboard Deployment
 
-Turn your clipboard into a live webpage in seconds! ClipShip is a developer-friendly Chrome extension that deploys your clipboard content to Netlify or GitHub Gist with just one click.
+Turn your clipboard into a live webpage in seconds! ClipShip is a developer-friendly Chrome extension that deploys your clipboard content with just one click.
 
 🚀 FEATURES
 
-• One-Click Deploy - Copy content, click deploy, get a shareable URL
+• One-Click Deploy - Set your default provider in Options, then deploy with a single click
 • Smart Content Detection - Automatically detects HTML, Markdown, or plain text
 • Beautiful Markdown Rendering - Full Markdown support with GitHub-style formatting
 • Syntax Highlighting - 20+ programming languages with highlight.js
 • Mermaid Diagrams - Flowcharts, sequence diagrams, ER diagrams, and more
-• Two Hosting Options - Netlify for permanent hosting, GitHub Gist for quick sharing
+• Four Hosting Options:
+  - Netlify - Permanent hosting with custom domains
+  - Vercel - Fast Edge network deployment
+  - Cloudflare Pages - Global CDN hosting
+  - GitHub Gist - Quick sharing via GistHack
 • Instant Sharing - URL automatically copied to clipboard and opened in new tab
 
 📝 SUPPORTED CONTENT
@@ -73,10 +77,14 @@ JavaScript, TypeScript, Python, Java, SQL, Bash, JSON, YAML, XML, CSS, Go, Rust,
 ⚙️ SETUP
 
 1. Click the extension icon and go to Options
-2. Enter your Netlify Personal Access Token and/or GitHub Token
-3. Copy any HTML/Markdown content to clipboard
-4. Click "Deploy to Netlify" or "Deploy to Gist"
-5. Your page is live! URL is copied and opened automatically
+2. Select your default deploy provider (Netlify, Vercel, Cloudflare Pages, or GitHub Gist)
+3. Enter the required API token for your chosen provider:
+   - Netlify: Personal Access Token
+   - Vercel: Personal Access Token
+   - Cloudflare Pages: API Token + Account ID
+   - GitHub Gist: Personal Access Token with gist scope
+4. Copy any HTML/Markdown content to clipboard
+5. Click the Deploy button - your page is live! URL is copied and opened automatically
 
 Perfect for:
 - Sharing code snippets with colleagues
@@ -113,7 +121,7 @@ This extension reads clipboard content to deploy it to Netlify or GitHub Gist. T
 ### storage
 
 ```
-This extension uses Chrome's sync storage to securely store user's API tokens (Netlify Personal Access Token and GitHub Personal Access Token). These tokens are required to authenticate with Netlify and GitHub APIs for deployment. The tokens are stored locally and synced across user's Chrome browsers.
+This extension uses Chrome's sync storage to securely store user's API tokens (Netlify, Vercel, Cloudflare, and GitHub Personal Access Tokens) and the default deploy provider setting. These tokens are required to authenticate with hosting provider APIs for deployment. The tokens are stored locally and synced across user's Chrome browsers.
 ```
 
 ### tabs
@@ -136,6 +144,24 @@ This extension calls Netlify's API to create and manage deployments. It needs to
 
 ```
 This extension calls GitHub's Gist API to create public gists. It needs to create gists with the user's clipboard content for sharing via GistHack URLs.
+```
+
+### Host Permissions: https://api.vercel.com/*
+
+```
+This extension calls Vercel's API to create deployments. It needs to:
+1. Create/find the ClipShip project on user's Vercel account
+2. Create deployments with inline file upload
+3. Get deployment URL for sharing
+```
+
+### Host Permissions: https://api.cloudflare.com/*
+
+```
+This extension calls Cloudflare's Pages API to create deployments. It needs to:
+1. Create/find the ClipShip project on user's Cloudflare account
+2. Upload files using the Direct Upload API with manifest
+3. Get deployment URL for sharing
 ```
 
 ---
