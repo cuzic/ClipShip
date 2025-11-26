@@ -11,14 +11,10 @@ import {
   setStorageData,
 } from "@/lib/storage";
 
-// グローバルに chrome をセット
-declare global {
-  var chrome: typeof import("sinon-chrome");
-}
-
 describe("Chrome Storage", () => {
   beforeEach(() => {
-    globalThis.chrome = chrome;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).chrome = chrome;
     chrome.storage.sync.get.flush();
     chrome.storage.sync.set.flush();
   });
