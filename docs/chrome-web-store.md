@@ -27,6 +27,8 @@ Turn your clipboard into a live webpage in seconds! ClipShip is a developer-frie
 • Smart Content Detection - Automatically detects HTML, Markdown, or plain text
 • Beautiful Markdown Rendering - Full Markdown support with GitHub-style formatting
 • Syntax Highlighting - 20+ programming languages with highlight.js
+• Math Equations - LaTeX math with KaTeX ($...$, $$...$$)
+• Task Lists - GitHub-style checkboxes (- [ ], - [x])
 • Mermaid Diagrams - Flowcharts, sequence diagrams, ER diagrams, and more
 • Four Hosting Options:
   - Netlify - Permanent hosting with custom domains
@@ -44,6 +46,8 @@ HTML:
 Markdown:
 - Headings, lists, tables, blockquotes
 - Code blocks with syntax highlighting
+- Math equations with KaTeX
+- Task lists with checkboxes
 - Links and images
 - Mermaid diagrams
 

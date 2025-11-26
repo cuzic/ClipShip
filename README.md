@@ -8,6 +8,8 @@
 - **コンテンツタイプの自動検出**: HTML、Markdown、プレーンテキストを自動判定
 - **Markdown レンダリング**: markdown-it によるレンダリング
 - **シンタックスハイライト**: highlight.js による 20 以上の言語のコードハイライト
+- **数式レンダリング**: KaTeX による LaTeX 数式のサポート（`$...$`, `$$...$$`）
+- **タスクリスト**: GitHub 形式のチェックボックス（`- [ ]`, `- [x]`）
 - **Mermaid ダイアグラム**: Mermaid 記法によるフローチャート、シーケンス図などの描画
 - **4 つのデプロイ先**:
   - **Netlify**: 独自ドメインでホスティング（File Digest API で増分デプロイ）
@@ -103,12 +105,36 @@ graph TD
 
 サポートするダイアグラム: flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt, pie, gitGraph, mindmap, timeline, quadrantChart, xychart, sankey
 
+### 数式 (KaTeX)
+
+インライン数式と表示数式をサポートしています。
+
+```markdown
+インライン数式: $E = mc^2$
+
+表示数式:
+$$
+\sum_{i=1}^{n} x_i = x_1 + x_2 + \cdots + x_n
+$$
+```
+
+### タスクリスト
+
+GitHub 形式のタスクリストをサポートしています。
+
+```markdown
+- [x] 完了したタスク
+- [ ] 未完了のタスク
+- [ ] 別のタスク
+```
+
 ## 技術スタック
 
 - **ビルドツール**: Bun
 - **言語**: TypeScript
 - **Markdown レンダリング**: markdown-it
 - **シンタックスハイライト**: highlight.js (CDN)
+- **数式**: KaTeX (CDN)
 - **ダイアグラム**: Mermaid.js (CDN)
 - **API クライアント**: ky
 - **バリデーション**: zod

@@ -3,7 +3,11 @@
  * クリップボードのテキストを完全なHTML構造に埋め込む
  */
 
+// @ts-expect-error: No type definitions available
+import markdownItKatex from "@iktakahiro/markdown-it-katex";
 import MarkdownIt from "markdown-it";
+// @ts-expect-error: No type definitions available
+import markdownItTaskLists from "markdown-it-task-lists";
 import { type ContentInfo, detectContentType } from "./detect";
 
 export interface ProcessedContent {
@@ -75,10 +79,18 @@ const HIGHLIGHT_JS_CDN = `
 `;
 
 /**
+ * KaTeX CDN (数式レンダリング)
+ */
+const KATEX_CDN = `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
+`;
+
+/**
  * Markdown スタイル
  */
 const MARKDOWN_STYLES = `
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
+${KATEX_CDN}
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -129,6 +141,19 @@ const MARKDOWN_STYLES = `
   .mermaid {
     text-align: center;
     margin: 20px 0;
+  }
+  /* Task list styles */
+  .task-list-item {
+    list-style-type: none;
+  }
+  .task-list-item input[type="checkbox"] {
+    margin-right: 8px;
+  }
+  ul.contains-task-list {
+    padding-left: 0;
+  }
+  ul.contains-task-list ul.contains-task-list {
+    padding-left: 24px;
   }
 </style>
 `;
@@ -205,11 +230,23 @@ function isMermaidCode(text: string, lang?: string): boolean {
  * 標準の markdown-it インスタンスを作成
  */
 function createMarkdownIt() {
-  return new MarkdownIt({
+  const md = new MarkdownIt({
     html: false, // XSS 対策: HTML タグを無効化
     linkify: true,
     typographer: true,
   });
+
+  // KaTeX プラグイン（数式対応）
+  md.use(markdownItKatex);
+
+  // タスクリストプラグイン
+  md.use(markdownItTaskLists, {
+    enabled: true,
+    label: true,
+    labelAfter: true,
+  });
+
+  return md;
 }
 
 /**

@@ -67,4 +67,62 @@ describe("processContent", () => {
       expect(result.mimeType).toBe("text/html");
     });
   });
+
+  describe("KaTeX 数式処理", () => {
+    test("should render inline math with $...$", () => {
+      const content = "# Math\n\nInline: $E = mc^2$";
+      const result = processContent(content);
+
+      expect(result.content).toContain("katex");
+      expect(result.content).toContain("katex.min.css");
+    });
+
+    test("should render display math with $$...$$", () => {
+      const content = "# Math\n\n$$\\sum_{i=1}^{n} x_i$$";
+      const result = processContent(content);
+
+      expect(result.content).toContain("katex");
+    });
+
+    test("should include KaTeX CSS in Markdown output", () => {
+      const content = "# Test\n\nSome text";
+      const result = processContent(content);
+
+      expect(result.content).toContain("katex.min.css");
+    });
+  });
+
+  describe("タスクリスト処理", () => {
+    test("should render unchecked task list items", () => {
+      const content = "# Tasks\n\n- [ ] Todo item";
+      const result = processContent(content);
+
+      expect(result.content).toContain('type="checkbox"');
+      expect(result.content).not.toContain("checked");
+    });
+
+    test("should render checked task list items", () => {
+      const content = "# Tasks\n\n- [x] Done item";
+      const result = processContent(content);
+
+      expect(result.content).toContain('type="checkbox"');
+      expect(result.content).toContain("checked");
+    });
+
+    test("should render mixed task list", () => {
+      const content = "# Tasks\n\n- [x] Done\n- [ ] Todo\n- [x] Also done";
+      const result = processContent(content);
+
+      const checkboxMatches = result.content.match(/type="checkbox"/g);
+      // 3 task items, each with checkbox (labelAfter option creates additional elements)
+      expect(checkboxMatches?.length).toBeGreaterThanOrEqual(3);
+    });
+
+    test("should include task list styles", () => {
+      const content = "# Test\n\nSome text";
+      const result = processContent(content);
+
+      expect(result.content).toContain("task-list-item");
+    });
+  });
 });

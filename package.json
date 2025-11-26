@@ -30,8 +30,10 @@
     "zip-a-folder": "^3.1.0"
   },
   "dependencies": {
+    "@iktakahiro/markdown-it-katex": "^4.0.1",
     "ky": "^1.7.0",
     "markdown-it": "^14.1.0",
+    "markdown-it-task-lists": "^2.1.1",
     "nanoid": "^5.0.0",
     "neverthrow": "^8.2.0",
     "zod": "^3.23.0"
