@@ -1,0 +1,23 @@
+[tools]
+bun = "latest"
+
+[tasks.dev]
+run = "bun run dev"
+
+[tasks.build]
+run = "bun run build"
+
+[tasks.lint]
+run = "bun run lint"
+
+[tasks.test]
+run = "bun run test"
+
+[tasks.test-e2e]
+run = "bun run test:e2e"
+
+[tasks.package]
+run = "bun run package"
+
+[tasks.publish]
+run = "bun run publish:chrome"

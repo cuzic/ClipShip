@@ -1,0 +1,38 @@
+{
+  "name": "clipship",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Deploy clipboard HTML to Netlify or GitHub Gist instantly",
+  "scripts": {
+    "dev": "bun build src/popup.ts src/options.ts --outdir dist --watch",
+    "build": "bun build src/popup.ts src/options.ts --outdir dist --minify && cp -r public/* dist/",
+    "lint": "biome check .",
+    "lint:ext": "web-ext lint --source-dir dist",
+    "format": "biome format --write .",
+    "test": "bun test",
+    "test:e2e": "playwright test",
+    "package": "bun run build && bun run scripts/package.ts",
+    "publish:chrome": "chrome-webstore-upload upload --source dist.zip",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@playwright/test": "^1.48.0",
+    "@types/chrome": "^0.0.270",
+    "bun-types": "^1.1.0",
+    "chrome-webstore-upload-cli": "^3.3.0",
+    "crx": "^5.0.1",
+    "knip": "^5.33.0",
+    "lefthook": "^1.7.0",
+    "sinon-chrome": "^3.0.1",
+    "typescript": "^5.6.0",
+    "web-ext": "^8.3.0",
+    "zip-a-folder": "^3.1.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.0",
+    "ky": "^1.7.0",
+    "nanoid": "^5.0.0",
+    "zod": "^3.23.0"
+  }
+}

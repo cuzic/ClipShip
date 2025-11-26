@@ -1,0 +1,3155 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "version": "1.1.4",
+    "title": "GitHub v3 REST API",
+    "description": "GitHub's v3 REST API.",
+    "license": {
+      "name": "MIT",
+      "url": "https://spdx.org/licenses/MIT"
+    },
+    "termsOfService": "https://docs.github.com/articles/github-terms-of-service",
+    "contact": {
+      "name": "Support",
+      "url": "https://support.github.com/contact?tags=dotcom-rest-api"
+    },
+    "x-github-plan": "api.github.com"
+  },
+  "servers": [
+    {
+      "url": "https://api.github.com"
+    }
+  ],
+  "paths": {
+    "/gists": {
+      "get": {
+        "summary": "List gists for the authenticated user",
+        "description": "Lists the authenticated user's gists or if called anonymously, this endpoint returns all public gists:",
+        "tags": ["gists"],
+        "operationId": "gists/list",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#list-gists-for-the-authenticated-user"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/since"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/base-gist"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/base-gist-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "$ref": "#/components/headers/link"
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "post": {
+        "summary": "Create a gist",
+        "description": "Allows you to add a new gist with one or more files.\n\n> [!NOTE]\n> Don't name your files \"gistfile\" with a numerical suffix. This is the format of the automatic naming scheme that Gist uses internally.",
+        "operationId": "gists/create",
+        "tags": ["gists"],
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#create-a-gist"
+        },
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "description": "Description of the gist",
+                    "example": "Example Ruby script",
+                    "type": "string"
+                  },
+                  "files": {
+                    "description": "Names and content for the files that make up the gist",
+                    "example": {
+                      "hello.rb": {
+                        "content": "puts \"Hello, World!\""
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "description": "Content of the file",
+                          "readOnly": false,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["content"]
+                    }
+                  },
+                  "public": {
+                    "oneOf": [
+                      {
+                        "description": "Flag indicating whether the gist is public",
+                        "example": true,
+                        "type": "boolean",
+                        "default": false
+                      },
+                      {
+                        "type": "string",
+                        "example": "true",
+                        "default": "false",
+                        "enum": ["true", "false"]
+                      }
+                    ]
+                  }
+                },
+                "required": ["files"],
+                "type": "object"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Creating a gist",
+                  "value": {
+                    "description": "Example of a gist",
+                    "public": false,
+                    "files": {
+                      "README.md": {
+                        "content": "Hello World"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-simple"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "example": "https://api.github.com/gists/aa5a315d61ae9438b18d",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/validation_failed"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/public": {
+      "get": {
+        "summary": "List public gists",
+        "description": "List public gists sorted by most recently updated to least recently updated.\n\nNote: With [pagination](https://docs.github.com/rest/guides/using-pagination-in-the-rest-api), you can fetch up to 3000 gists. For example, you can fetch 100 pages with 30 gists per page or 30 pages with 100 gists per page.",
+        "tags": ["gists"],
+        "operationId": "gists/list-public",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#list-public-gists"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/since"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/base-gist"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/base-gist-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "$ref": "#/components/headers/link"
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/validation_failed"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/starred": {
+      "get": {
+        "summary": "List starred gists",
+        "description": "List the authenticated user's starred gists:",
+        "tags": ["gists"],
+        "operationId": "gists/list-starred",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#list-starred-gists"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/since"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/base-gist"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/base-gist-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "$ref": "#/components/headers/link"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/requires_authentication"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/{gist_id}": {
+      "get": {
+        "summary": "Get a gist",
+        "description": "Gets a specified gist.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/get",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#get-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-simple"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden_gist"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "patch": {
+        "summary": "Update a gist",
+        "description": "Allows you to update a gist's description and to update, delete, or rename gist files. Files\nfrom the previous version of the gist that aren't explicitly changed during an edit\nare unchanged.\n\nAt least one of `description` or `files` is required.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/update",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#update-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "description": "The description of the gist.",
+                    "example": "Example Ruby script",
+                    "type": "string"
+                  },
+                  "files": {
+                    "description": "The gist files to be updated, renamed, or deleted. Each `key` must match the current filename\n(including extension) of the targeted gist file. For example: `hello.py`.\n\nTo delete a file, set the whole file to null. For example: `hello.py : null`. The file will also be\ndeleted if the specified object does not contain at least one of `content` or `filename`.",
+                    "example": {
+                      "hello.rb": {
+                        "content": "blah",
+                        "filename": "goodbye.rb"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "content": {
+                          "description": "The new content of the file.",
+                          "type": "string"
+                        },
+                        "filename": {
+                          "description": "The new filename for the file.",
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                },
+                "type": "object",
+                "nullable": true
+              },
+              "examples": {
+                "updateGist": {
+                  "summary": "Updating a gist",
+                  "value": {
+                    "description": "An updated gist description",
+                    "files": {
+                      "README.md": {
+                        "content": "Hello World from GitHub"
+                      }
+                    }
+                  }
+                },
+                "deleteFile": {
+                  "summary": "Deleting a gist file",
+                  "value": {
+                    "files": {
+                      "hello.py": null
+                    }
+                  }
+                },
+                "renameFile": {
+                  "summary": "Renaming a gist file",
+                  "value": {
+                    "files": {
+                      "hello.py": {
+                        "filename": "goodbye.py"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-simple"
+                },
+                "examples": {
+                  "updateGist": {
+                    "$ref": "#/components/examples/gist"
+                  },
+                  "deleteFile": {
+                    "$ref": "#/components/examples/delete-gist-file"
+                  },
+                  "renameFile": {
+                    "$ref": "#/components/examples/rename-gist-file"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/validation_failed"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "delete": {
+        "summary": "Delete a gist",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/delete",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#delete-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Response"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/{gist_id}/comments": {
+      "get": {
+        "summary": "List gist comments",
+        "description": "Lists the comments on a gist.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/list-comments",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/comments#list-gist-comments"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/gist-comment"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-comment-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "$ref": "#/components/headers/link"
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "comments"
+        }
+      },
+      "post": {
+        "summary": "Create a gist comment",
+        "description": "Creates a comment on a gist.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/create-comment",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/comments#create-a-gist-comment"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "body": {
+                    "description": "The comment text.",
+                    "type": "string",
+                    "maxLength": 65535,
+                    "example": "Body of the attachment"
+                  }
+                },
+                "type": "object",
+                "required": ["body"]
+              },
+              "examples": {
+                "default": {
+                  "summary": "Creating a comment in a gist",
+                  "value": {
+                    "body": "This is a comment to a gist"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-comment"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-comment"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "example": "https://api.github.com/gists/a6db0bec360bb87e9418/comments/1",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "comments"
+        }
+      }
+    },
+    "/gists/{gist_id}/comments/{comment_id}": {
+      "get": {
+        "summary": "Get a gist comment",
+        "description": "Gets a comment on a gist.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/get-comment",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/comments#get-a-gist-comment"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/comment-id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-comment"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-comment"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden_gist"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "comments"
+        }
+      },
+      "patch": {
+        "summary": "Update a gist comment",
+        "description": "Updates a comment on a gist.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/update-comment",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/comments#update-a-gist-comment"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/comment-id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "body": {
+                    "description": "The comment text.",
+                    "type": "string",
+                    "maxLength": 65535,
+                    "example": "Body of the attachment"
+                  }
+                },
+                "type": "object",
+                "required": ["body"]
+              },
+              "examples": {
+                "default": {
+                  "summary": "Updating a comment in a gist",
+                  "value": {
+                    "body": "This is an update to a comment in a gist"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-comment"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-comment"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "comments"
+        }
+      },
+      "delete": {
+        "summary": "Delete a gist comment",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/delete-comment",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/comments#delete-a-gist-comment"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/comment-id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Response"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "comments"
+        }
+      }
+    },
+    "/gists/{gist_id}/commits": {
+      "get": {
+        "summary": "List gist commits",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/list-commits",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#list-gist-commits"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/gist-commit"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-commit-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "example": "<https://api.github.com/resource?page=2>; rel=\"next\"",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/{gist_id}/forks": {
+      "get": {
+        "summary": "List gist forks",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/list-forks",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#list-gist-forks"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "$ref": "#/components/parameters/per-page"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/gist-simple"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist-fork-items"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Link": {
+                "$ref": "#/components/headers/link"
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "post": {
+        "summary": "Fork a gist",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/fork",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#fork-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/base-gist"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/base-gist"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "example": "https://api.github.com/gists/aa5a315d61ae9438b18d",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "422": {
+            "$ref": "#/components/responses/validation_failed"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/{gist_id}/star": {
+      "get": {
+        "summary": "Check if a gist is starred",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/check-is-starred",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#check-if-a-gist-is-starred"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Response if gist is starred"
+          },
+          "404": {
+            "description": "Not Found if gist is not starred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "put": {
+        "summary": "Star a gist",
+        "description": "Note that you'll need to set `Content-Length` to zero when calling out to this endpoint. For more information, see \"[HTTP method](https://docs.github.com/rest/guides/getting-started-with-the-rest-api#http-method).\"",
+        "tags": ["gists"],
+        "operationId": "gists/star",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#star-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Response"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      },
+      "delete": {
+        "summary": "Unstar a gist",
+        "description": "",
+        "tags": ["gists"],
+        "operationId": "gists/unstar",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#unstar-a-gist"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Response"
+          },
+          "304": {
+            "$ref": "#/components/responses/not_modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    },
+    "/gists/{gist_id}/{sha}": {
+      "get": {
+        "summary": "Get a gist revision",
+        "description": "Gets a specified gist revision.\n\nThis endpoint supports the following custom media types. For more information, see \"[Media types](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types).\"\n\n- **`application/vnd.github.raw+json`**: Returns the raw markdown. This is the default if you do not pass any specific media type.\n- **`application/vnd.github.base64+json`**: Returns the base64-encoded contents. This can be useful if your gist contains any invalid UTF-8 sequences.",
+        "tags": ["gists"],
+        "operationId": "gists/get-revision",
+        "externalDocs": {
+          "description": "API method documentation",
+          "url": "https://docs.github.com/rest/gists/gists#get-a-gist-revision"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/gist-id"
+          },
+          {
+            "name": "sha",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gist-simple"
+                },
+                "examples": {
+                  "default": {
+                    "$ref": "#/components/examples/gist"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/validation_failed"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        },
+        "x-github": {
+          "githubCloudOnly": false,
+          "enabledForGitHubApps": false,
+          "category": "gists",
+          "subcategory": "gists"
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "base-gist": {
+        "title": "Base Gist",
+        "description": "Base Gist",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "forks_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "commits_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "id": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "git_pull_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "git_push_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "html_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "raw_url": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "encoding": {
+                  "type": "string",
+                  "description": "The encoding used for `content`. Currently, `\"utf-8\"` and `\"base64\"` are supported.",
+                  "default": "utf-8"
+                }
+              }
+            }
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "comments": {
+            "type": "integer"
+          },
+          "comments_enabled": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/nullable-simple-user"
+          },
+          "comments_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/simple-user"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "forks": {
+            "type": "array",
+            "items": {}
+          },
+          "history": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "id",
+          "node_id",
+          "url",
+          "forks_url",
+          "commits_url",
+          "git_pull_url",
+          "git_push_url",
+          "html_url",
+          "comments_url",
+          "public",
+          "description",
+          "comments",
+          "user",
+          "files",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "gist-history": {
+        "title": "Gist History",
+        "description": "Gist History",
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/nullable-simple-user"
+          },
+          "version": {
+            "type": "string"
+          },
+          "committed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "change_status": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "additions": {
+                "type": "integer"
+              },
+              "deletions": {
+                "type": "integer"
+              }
+            }
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "gist-simple": {
+        "title": "Gist Simple",
+        "description": "Gist Simple",
+        "type": "object",
+        "properties": {
+          "forks": {
+            "deprecated": true,
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "user": {
+                  "$ref": "#/components/schemas/public-user"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "history": {
+            "deprecated": true,
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/gist-history"
+            }
+          },
+          "fork_of": {
+            "nullable": true,
+            "title": "Gist",
+            "description": "Gist",
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "forks_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "commits_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "id": {
+                "type": "string"
+              },
+              "node_id": {
+                "type": "string"
+              },
+              "git_pull_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "git_push_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "html_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "files": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "filename": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "language": {
+                      "type": "string"
+                    },
+                    "raw_url": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "public": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "comments": {
+                "type": "integer"
+              },
+              "comments_enabled": {
+                "type": "boolean"
+              },
+              "user": {
+                "$ref": "#/components/schemas/nullable-simple-user"
+              },
+              "comments_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "owner": {
+                "$ref": "#/components/schemas/nullable-simple-user"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "forks": {
+                "type": "array",
+                "items": {}
+              },
+              "history": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "id",
+              "node_id",
+              "url",
+              "forks_url",
+              "commits_url",
+              "git_pull_url",
+              "git_push_url",
+              "html_url",
+              "comments_url",
+              "public",
+              "description",
+              "comments",
+              "user",
+              "files",
+              "created_at",
+              "updated_at"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "forks_url": {
+            "type": "string"
+          },
+          "commits_url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "git_pull_url": {
+            "type": "string"
+          },
+          "git_push_url": {
+            "type": "string"
+          },
+          "html_url": {
+            "type": "string"
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true,
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "raw_url": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "encoding": {
+                  "type": "string",
+                  "description": "The encoding used for `content`. Currently, `\"utf-8\"` and `\"base64\"` are supported.",
+                  "default": "utf-8"
+                }
+              }
+            }
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "comments": {
+            "type": "integer"
+          },
+          "comments_enabled": {
+            "type": "boolean"
+          },
+          "user": {
+            "type": "string",
+            "nullable": true
+          },
+          "comments_url": {
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/simple-user"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "gist-comment": {
+        "title": "Gist Comment",
+        "description": "A comment made to a gist.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "node_id": {
+            "type": "string",
+            "example": "MDExOkdpc3RDb21tZW50MQ=="
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://api.github.com/gists/a6db0bec360bb87e9418/comments/1"
+          },
+          "body": {
+            "description": "The comment text.",
+            "type": "string",
+            "maxLength": 65535,
+            "example": "Body of the attachment"
+          },
+          "user": {
+            "$ref": "#/components/schemas/nullable-simple-user"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2011-04-18T23:23:56Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2011-04-18T23:23:56Z"
+          },
+          "author_association": {
+            "$ref": "#/components/schemas/author-association"
+          }
+        },
+        "required": [
+          "url",
+          "id",
+          "node_id",
+          "user",
+          "body",
+          "author_association",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "gist-commit": {
+        "title": "Gist Commit",
+        "description": "Gist Commit",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://api.github.com/gists/aa5a315d61ae9438b18d/57a7f021a713b1c5a6a199b54cc514735d2d462f"
+          },
+          "version": {
+            "type": "string",
+            "example": "57a7f021a713b1c5a6a199b54cc514735d2d462f"
+          },
+          "user": {
+            "$ref": "#/components/schemas/nullable-simple-user"
+          },
+          "change_status": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "additions": {
+                "type": "integer"
+              },
+              "deletions": {
+                "type": "integer"
+              }
+            }
+          },
+          "committed_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2010-04-14T02:15:15Z"
+          }
+        },
+        "required": ["url", "user", "version", "committed_at", "change_status"]
+      },
+      "org-private-registry-configuration": {
+        "title": "Organization private registry",
+        "description": "Private registry configuration for an organization",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The name of the private registry configuration.",
+            "example": "MAVEN_REPOSITORY_SECRET",
+            "type": "string"
+          },
+          "registry_type": {
+            "description": "The registry type.",
+            "enum": [
+              "maven_repository",
+              "nuget_feed",
+              "goproxy_server",
+              "npm_registry",
+              "rubygems_server",
+              "cargo_registry",
+              "composer_repository",
+              "docker_registry",
+              "git_source",
+              "helm_registry",
+              "hex_organization",
+              "hex_repository",
+              "pub_repository",
+              "python_index",
+              "terraform_registry"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "description": "The URL of the private registry.",
+            "type": "string",
+            "format": "uri"
+          },
+          "username": {
+            "description": "The username to use when authenticating with the private registry.",
+            "example": "monalisa",
+            "type": "string",
+            "nullable": true
+          },
+          "replaces_base": {
+            "description": "Whether this private registry replaces the base registry (e.g., npmjs.org for npm, rubygems.org for rubygems). When `true`, Dependabot will only use this registry and will not fall back to the public registry. When `false` (default), Dependabot will use this registry for scoped packages but may fall back to the public registry for other packages.",
+            "type": "boolean",
+            "default": false
+          },
+          "visibility": {
+            "description": "Which type of organization repositories have access to the private registry.",
+            "enum": ["all", "private", "selected"],
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "registry_type",
+          "visibility",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "org-private-registry-configuration-with-selected-repositories": {
+        "title": "Organization private registry",
+        "description": "Private registry configuration for an organization",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The name of the private registry configuration.",
+            "example": "MAVEN_REPOSITORY_SECRET",
+            "type": "string"
+          },
+          "registry_type": {
+            "description": "The registry type.",
+            "enum": [
+              "maven_repository",
+              "nuget_feed",
+              "goproxy_server",
+              "npm_registry",
+              "rubygems_server",
+              "cargo_registry",
+              "composer_repository",
+              "docker_registry",
+              "git_source",
+              "helm_registry",
+              "hex_organization",
+              "hex_repository",
+              "pub_repository",
+              "python_index",
+              "terraform_registry"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "description": "The URL of the private registry.",
+            "type": "string",
+            "format": "uri"
+          },
+          "username": {
+            "description": "The username to use when authenticating with the private registry.",
+            "example": "monalisa",
+            "type": "string"
+          },
+          "replaces_base": {
+            "description": "Whether this private registry replaces the base registry (e.g., npmjs.org for npm, rubygems.org for rubygems). When `true`, Dependabot will only use this registry and will not fall back to the public registry. When `false` (default), Dependabot will use this registry for scoped packages but may fall back to the public registry for other packages.",
+            "type": "boolean",
+            "default": false
+          },
+          "visibility": {
+            "description": "Which type of organization repositories have access to the private registry. `selected` means only the repositories specified by `selected_repository_ids` can access the private registry.",
+            "enum": ["all", "private", "selected"],
+            "type": "string"
+          },
+          "selected_repository_ids": {
+            "type": "array",
+            "description": "An array of repository IDs that can access the organization private registry when `visibility` is set to `selected`.",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "registry_type",
+          "visibility",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "webhook-registry-package-published": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["published"]
+          },
+          "enterprise": {
+            "$ref": "#/components/schemas/enterprise-webhooks"
+          },
+          "installation": {
+            "$ref": "#/components/schemas/simple-installation"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/organization-simple-webhooks"
+          },
+          "registry_package": {
+            "type": "object",
+            "properties": {
+              "created_at": {
+                "type": "string",
+                "nullable": true
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "ecosystem": {
+                "type": "string"
+              },
+              "html_url": {
+                "type": "string"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "namespace": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "object",
+                "properties": {
+                  "avatar_url": {
+                    "type": "string"
+                  },
+                  "events_url": {
+                    "type": "string"
+                  },
+                  "followers_url": {
+                    "type": "string"
+                  },
+                  "following_url": {
+                    "type": "string"
+                  },
+                  "gists_url": {
+                    "type": "string"
+                  },
+                  "gravatar_id": {
+                    "type": "string"
+                  },
+                  "html_url": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "organizations_url": {
+                    "type": "string"
+                  },
+                  "received_events_url": {
+                    "type": "string"
+                  },
+                  "repos_url": {
+                    "type": "string"
+                  },
+                  "site_admin": {
+                    "type": "boolean"
+                  },
+                  "starred_url": {
+                    "type": "string"
+                  },
+                  "subscriptions_url": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "user_view_type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login",
+                  "id",
+                  "node_id",
+                  "avatar_url",
+                  "gravatar_id",
+                  "url",
+                  "html_url",
+                  "followers_url",
+                  "following_url",
+                  "gists_url",
+                  "starred_url",
+                  "subscriptions_url",
+                  "organizations_url",
+                  "repos_url",
+                  "events_url",
+                  "received_events_url",
+                  "type",
+                  "site_admin"
+                ]
+              },
+              "package_type": {
+                "type": "string"
+              },
+              "package_version": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "author": {
+                    "type": "object",
+                    "properties": {
+                      "avatar_url": {
+                        "type": "string"
+                      },
+                      "events_url": {
+                        "type": "string"
+                      },
+                      "followers_url": {
+                        "type": "string"
+                      },
+                      "following_url": {
+                        "type": "string"
+                      },
+                      "gists_url": {
+                        "type": "string"
+                      },
+                      "gravatar_id": {
+                        "type": "string"
+                      },
+                      "html_url": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "login": {
+                        "type": "string"
+                      },
+                      "node_id": {
+                        "type": "string"
+                      },
+                      "organizations_url": {
+                        "type": "string"
+                      },
+                      "received_events_url": {
+                        "type": "string"
+                      },
+                      "repos_url": {
+                        "type": "string"
+                      },
+                      "site_admin": {
+                        "type": "boolean"
+                      },
+                      "starred_url": {
+                        "type": "string"
+                      },
+                      "subscriptions_url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "user_view_type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "login",
+                      "id",
+                      "node_id",
+                      "avatar_url",
+                      "gravatar_id",
+                      "url",
+                      "html_url",
+                      "followers_url",
+                      "following_url",
+                      "gists_url",
+                      "starred_url",
+                      "subscriptions_url",
+                      "organizations_url",
+                      "repos_url",
+                      "events_url",
+                      "received_events_url",
+                      "type",
+                      "site_admin"
+                    ]
+                  },
+                  "body": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "body_html": {
+                    "type": "string"
+                  },
+                  "container_metadata": {
+                    "type": "object",
+                    "properties": {
+                      "labels": {
+                        "type": "object",
+                        "nullable": true
+                      },
+                      "manifest": {
+                        "type": "object",
+                        "nullable": true
+                      },
+                      "tag": {
+                        "type": "object",
+                        "properties": {
+                          "digest": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "docker_metadata": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "html_url": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "installation_command": {
+                    "type": "string"
+                  },
+                  "manifest": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "npm_metadata": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "npm_user": {
+                        "type": "string"
+                      },
+                      "author": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object"
+                          }
+                        ],
+                        "nullable": true
+                      },
+                      "bugs": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object"
+                          }
+                        ],
+                        "nullable": true
+                      },
+                      "dependencies": {
+                        "type": "object"
+                      },
+                      "dev_dependencies": {
+                        "type": "object"
+                      },
+                      "peer_dependencies": {
+                        "type": "object"
+                      },
+                      "optional_dependencies": {
+                        "type": "object"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "dist": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object"
+                          }
+                        ],
+                        "nullable": true
+                      },
+                      "git_head": {
+                        "type": "string"
+                      },
+                      "homepage": {
+                        "type": "string"
+                      },
+                      "license": {
+                        "type": "string"
+                      },
+                      "main": {
+                        "type": "string"
+                      },
+                      "repository": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object"
+                          }
+                        ],
+                        "nullable": true
+                      },
+                      "scripts": {
+                        "type": "object"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "node_version": {
+                        "type": "string"
+                      },
+                      "npm_version": {
+                        "type": "string"
+                      },
+                      "has_shrinkwrap": {
+                        "type": "boolean"
+                      },
+                      "maintainers": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "contributors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "engines": {
+                        "type": "object"
+                      },
+                      "keywords": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "bin": {
+                        "type": "object"
+                      },
+                      "man": {
+                        "type": "object"
+                      },
+                      "directories": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object"
+                          }
+                        ],
+                        "nullable": true
+                      },
+                      "os": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "cpu": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "readme": {
+                        "type": "string"
+                      },
+                      "installation_command": {
+                        "type": "string"
+                      },
+                      "release_id": {
+                        "type": "integer"
+                      },
+                      "commit_oid": {
+                        "type": "string"
+                      },
+                      "published_via_actions": {
+                        "type": "boolean"
+                      },
+                      "deleted_by_id": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "nuget_metadata": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object"
+                            },
+                            {
+                              "type": "integer"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "oneOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "branch": {
+                                  "type": "string"
+                                },
+                                "commit": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "package_files": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "content_type": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "download_url": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "integer"
+                        },
+                        "md5": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sha1": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "size": {
+                          "type": "integer"
+                        },
+                        "state": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "download_url",
+                        "id",
+                        "name",
+                        "sha256",
+                        "sha1",
+                        "md5",
+                        "content_type",
+                        "state",
+                        "size",
+                        "created_at",
+                        "updated_at"
+                      ]
+                    }
+                  },
+                  "package_url": {
+                    "type": "string"
+                  },
+                  "prerelease": {
+                    "type": "boolean"
+                  },
+                  "release": {
+                    "type": "object",
+                    "properties": {
+                      "author": {
+                        "type": "object",
+                        "properties": {
+                          "avatar_url": {
+                            "type": "string"
+                          },
+                          "events_url": {
+                            "type": "string"
+                          },
+                          "followers_url": {
+                            "type": "string"
+                          },
+                          "following_url": {
+                            "type": "string"
+                          },
+                          "gists_url": {
+                            "type": "string"
+                          },
+                          "gravatar_id": {
+                            "type": "string"
+                          },
+                          "html_url": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "login": {
+                            "type": "string"
+                          },
+                          "node_id": {
+                            "type": "string"
+                          },
+                          "organizations_url": {
+                            "type": "string"
+                          },
+                          "received_events_url": {
+                            "type": "string"
+                          },
+                          "repos_url": {
+                            "type": "string"
+                          },
+                          "site_admin": {
+                            "type": "boolean"
+                          },
+                          "starred_url": {
+                            "type": "string"
+                          },
+                          "subscriptions_url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "user_view_type": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "created_at": {
+                        "type": "string"
+                      },
+                      "draft": {
+                        "type": "boolean"
+                      },
+                      "html_url": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "prerelease": {
+                        "type": "boolean"
+                      },
+                      "published_at": {
+                        "type": "string"
+                      },
+                      "tag_name": {
+                        "type": "string"
+                      },
+                      "target_commitish": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "rubygems_metadata": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/webhook-rubygems-metadata"
+                    }
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "tag_name": {
+                    "type": "string"
+                  },
+                  "target_commitish": {
+                    "type": "string"
+                  },
+                  "target_oid": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version",
+                  "name",
+                  "description",
+                  "summary",
+                  "html_url",
+                  "metadata",
+                  "package_files",
+                  "installation_command",
+                  "package_url"
+                ]
+              },
+              "registry": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "about_url": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "vendor": {
+                    "type": "string"
+                  }
+                }
+              },
+              "updated_at": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "namespace",
+              "description",
+              "ecosystem",
+              "package_type",
+              "html_url",
+              "created_at",
+              "updated_at",
+              "owner",
+              "package_version",
+              "registry"
+            ]
+          },
+          "repository": {
+            "$ref": "#/components/schemas/repository-webhooks"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/simple-user"
+          }
+        },
+        "required": ["action", "registry_package", "sender"]
+      },
+      "webhook-registry-package-updated": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["updated"]
+          },
+          "enterprise": {
+            "$ref": "#/components/schemas/enterprise-webhooks"
+          },
+          "installation": {
+            "$ref": "#/components/schemas/simple-installation"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/organization-simple-webhooks"
+          },
+          "registry_package": {
+            "type": "object",
+            "properties": {
+              "created_at": {
+                "type": "string"
+              },
+              "description": {
+                "nullable": true
+              },
+              "ecosystem": {
+                "type": "string"
+              },
+              "html_url": {
+                "type": "string"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "namespace": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "object",
+                "properties": {
+                  "avatar_url": {
+                    "type": "string"
+                  },
+                  "events_url": {
+                    "type": "string"
+                  },
+                  "followers_url": {
+                    "type": "string"
+                  },
+                  "following_url": {
+                    "type": "string"
+                  },
+                  "gists_url": {
+                    "type": "string"
+                  },
+                  "gravatar_id": {
+                    "type": "string"
+                  },
+                  "html_url": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "organizations_url": {
+                    "type": "string"
+                  },
+                  "received_events_url": {
+                    "type": "string"
+                  },
+                  "repos_url": {
+                    "type": "string"
+                  },
+                  "site_admin": {
+                    "type": "boolean"
+                  },
+                  "starred_url": {
+                    "type": "string"
+                  },
+                  "subscriptions_url": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "user_view_type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login",
+                  "id",
+                  "node_id",
+                  "avatar_url",
+                  "gravatar_id",
+                  "url",
+                  "html_url",
+                  "followers_url",
+                  "following_url",
+                  "gists_url",
+                  "starred_url",
+                  "subscriptions_url",
+                  "organizations_url",
+                  "repos_url",
+                  "events_url",
+                  "received_events_url",
+                  "type",
+                  "site_admin"
+                ]
+              },
+              "package_type": {
+                "type": "string"
+              },
+              "package_version": {
+                "type": "object",
+                "properties": {
+                  "author": {
+                    "type": "object",
+                    "properties": {
+                      "avatar_url": {
+                        "type": "string"
+                      },
+                      "events_url": {
+                        "type": "string"
+                      },
+                      "followers_url": {
+                        "type": "string"
+                      },
+                      "following_url": {
+                        "type": "string"
+                      },
+                      "gists_url": {
+                        "type": "string"
+                      },
+                      "gravatar_id": {
+                        "type": "string"
+                      },
+                      "html_url": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "login": {
+                        "type": "string"
+                      },
+                      "node_id": {
+                        "type": "string"
+                      },
+                      "organizations_url": {
+                        "type": "string"
+                      },
+                      "received_events_url": {
+                        "type": "string"
+                      },
+                      "repos_url": {
+                        "type": "string"
+                      },
+                      "site_admin": {
+                        "type": "boolean"
+                      },
+                      "starred_url": {
+                        "type": "string"
+                      },
+                      "subscriptions_url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "user_view_type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "login",
+                      "id",
+                      "node_id",
+                      "avatar_url",
+                      "gravatar_id",
+                      "url",
+                      "html_url",
+                      "followers_url",
+                      "following_url",
+                      "gists_url",
+                      "starred_url",
+                      "subscriptions_url",
+                      "organizations_url",
+                      "repos_url",
+                      "events_url",
+                      "received_events_url",
+                      "type",
+                      "site_admin"
+                    ]
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "body_html": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "docker_metadata": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "html_url": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "installation_command": {
+                    "type": "string"
+                  },
+                  "manifest": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "package_files": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "content_type": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "download_url": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "integer"
+                        },
+                        "md5": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sha1": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "sha256": {
+                          "type": "string"
+                        },
+                        "size": {
+                          "type": "integer"
+                        },
+                        "state": {
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "package_url": {
+                    "type": "string"
+                  },
+                  "prerelease": {
+                    "type": "boolean"
+                  },
+                  "release": {
+                    "type": "object",
+                    "properties": {
+                      "author": {
+                        "type": "object",
+                        "properties": {
+                          "avatar_url": {
+                            "type": "string"
+                          },
+                          "events_url": {
+                            "type": "string"
+                          },
+                          "followers_url": {
+                            "type": "string"
+                          },
+                          "following_url": {
+                            "type": "string"
+                          },
+                          "gists_url": {
+                            "type": "string"
+                          },
+                          "gravatar_id": {
+                            "type": "string"
+                          },
+                          "html_url": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "login": {
+                            "type": "string"
+                          },
+                          "node_id": {
+                            "type": "string"
+                          },
+                          "organizations_url": {
+                            "type": "string"
+                          },
+                          "received_events_url": {
+                            "type": "string"
+                          },
+                          "repos_url": {
+                            "type": "string"
+                          },
+                          "site_admin": {
+                            "type": "boolean"
+                          },
+                          "starred_url": {
+                            "type": "string"
+                          },
+                          "subscriptions_url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "user_view_type": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "login",
+                          "id",
+                          "node_id",
+                          "avatar_url",
+                          "gravatar_id",
+                          "url",
+                          "html_url",
+                          "followers_url",
+                          "following_url",
+                          "gists_url",
+                          "starred_url",
+                          "subscriptions_url",
+                          "organizations_url",
+                          "repos_url",
+                          "events_url",
+                          "received_events_url",
+                          "type",
+                          "site_admin"
+                        ]
+                      },
+                      "created_at": {
+                        "type": "string"
+                      },
+                      "draft": {
+                        "type": "boolean"
+                      },
+                      "html_url": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "prerelease": {
+                        "type": "boolean"
+                      },
+                      "published_at": {
+                        "type": "string"
+                      },
+                      "tag_name": {
+                        "type": "string"
+                      },
+                      "target_commitish": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "html_url",
+                      "id",
+                      "tag_name",
+                      "target_commitish",
+                      "name",
+                      "draft",
+                      "author",
+                      "prerelease",
+                      "created_at",
+                      "published_at"
+                    ]
+                  },
+                  "rubygems_metadata": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/webhook-rubygems-metadata"
+                    }
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "tag_name": {
+                    "type": "string"
+                  },
+                  "target_commitish": {
+                    "type": "string"
+                  },
+                  "target_oid": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version",
+                  "name",
+                  "description",
+                  "summary",
+                  "body",
+                  "body_html",
+                  "html_url",
+                  "target_commitish",
+                  "target_oid",
+                  "created_at",
+                  "updated_at",
+                  "metadata",
+                  "package_files",
+                  "author",
+                  "installation_command",
+                  "package_url"
+                ]
+              },
+              "registry": {
+                "type": "object",
+                "nullable": true
+              },
+              "updated_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "namespace",
+              "description",
+              "ecosystem",
+              "package_type",
+              "html_url",
+              "created_at",
+              "updated_at",
+              "owner",
+              "package_version",
+              "registry"
+            ]
+          },
+          "repository": {
+            "$ref": "#/components/schemas/repository-webhooks"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/simple-user"
+          }
+        },
+        "required": ["action", "registry_package", "sender"]
+      }
+    }
+  }
+}

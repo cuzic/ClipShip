@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "ClipShip",
+  "version": "1.0.0",
+  "description": "Deploy clipboard HTML to Netlify or GitHub Gist instantly",
+  "permissions": ["clipboardRead", "storage"],
+  "host_permissions": ["https://api.netlify.com/*", "https://api.github.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ClipShip"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  }
+}
