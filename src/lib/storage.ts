@@ -3,7 +3,24 @@
  * トークンの保存・取得を行う
  */
 
-type StorageKeys = "netlifyToken" | "githubToken" | "netlifySiteId";
+/**
+ * デプロイプロバイダーの種類
+ */
+export type DeployProvider = "netlify" | "vercel" | "cloudflare" | "gist";
+
+/**
+ * ストレージキーの型
+ */
+type StorageKeys =
+  | "netlifyToken"
+  | "githubToken"
+  | "netlifySiteId"
+  | "vercelToken"
+  | "vercelProjectId"
+  | "cloudflareToken"
+  | "cloudflareAccountId"
+  | "cloudflareProjectId"
+  | "defaultProvider";
 
 /**
  * ストレージからデータを取得する
@@ -51,4 +68,19 @@ export function getMultipleStorageData(
       resolve(result as Partial<Record<StorageKeys, string>>);
     });
   });
+}
+
+/**
+ * デフォルトのデプロイプロバイダーを取得
+ */
+export async function getDefaultProvider(): Promise<DeployProvider> {
+  const provider = await getStorageData("defaultProvider");
+  return (provider as DeployProvider) || "netlify";
+}
+
+/**
+ * デフォルトのデプロイプロバイダーを設定
+ */
+export function setDefaultProvider(provider: DeployProvider): Promise<void> {
+  return setStorageData("defaultProvider", provider);
 }

@@ -1,22 +1,46 @@
 /**
  * Popup メインロジック
- * Netlify / GistHack へのデプロイ処理
+ * デフォルトプロバイダーへの1クリックデプロイ
  */
 
+import { deployToCloudflare } from "./lib/cloudflare";
 import { deployToGist } from "./lib/gist";
 import { deployToNetlify } from "./lib/netlify";
-import { getStorageData } from "./lib/storage";
+import {
+  type DeployProvider,
+  getDefaultProvider,
+  getStorageData,
+} from "./lib/storage";
+import { deployToVercel } from "./lib/vercel";
+
+/**
+ * プロバイダー名の表示用マッピング
+ */
+const PROVIDER_NAMES: Record<DeployProvider, string> = {
+  netlify: "Netlify",
+  vercel: "Vercel",
+  cloudflare: "Cloudflare Pages",
+  gist: "GitHub Gist",
+};
 
 /**
  * DOM要素の取得
  */
 function getElements() {
   const statusDiv = document.getElementById("status") as HTMLDivElement;
-  const netlifyBtn = document.getElementById(
-    "btn-netlify",
-  ) as HTMLButtonElement;
-  const gistBtn = document.getElementById("btn-gist") as HTMLButtonElement;
-  return { statusDiv, netlifyBtn, gistBtn };
+  const deployBtn = document.getElementById("btn-deploy") as HTMLButtonElement;
+  const providerHint = document.getElementById(
+    "provider-hint",
+  ) as HTMLDivElement;
+  return { statusDiv, deployBtn, providerHint };
+}
+
+/**
+ * ボタンのスタイルをプロバイダーに合わせて設定
+ */
+function setButtonStyle(btn: HTMLButtonElement, provider: DeployProvider) {
+  btn.className = provider;
+  btn.textContent = `Deploy to ${PROVIDER_NAMES[provider]}`;
 }
 
 /**
@@ -47,15 +71,6 @@ function showLoading(statusDiv: HTMLDivElement, message: string) {
 }
 
 /**
- * ボタンの有効/無効を切り替え
- */
-function setButtonsDisabled(buttons: HTMLButtonElement[], disabled: boolean) {
-  for (const btn of buttons) {
-    btn.disabled = disabled;
-  }
-}
-
-/**
  * クリップボードからテキストを取得
  */
 async function getClipboardText(): Promise<string> {
@@ -69,69 +84,127 @@ async function getClipboardText(): Promise<string> {
 /**
  * Netlify デプロイ処理
  */
-async function handleNetlifyDeploy(
-  statusDiv: HTMLDivElement,
-  buttons: HTMLButtonElement[],
-) {
-  setButtonsDisabled(buttons, true);
-  showLoading(statusDiv, "Deploying to Netlify...");
-
-  try {
-    const token = await getStorageData("netlifyToken");
-    if (!token) {
-      throw new Error("Netlify Token not set in Options.");
-    }
-
-    const text = await getClipboardText();
-    const result = await deployToNetlify(token, text, (message) => {
-      showLoading(statusDiv, message);
-    });
-    await showSuccess(statusDiv, result.deployUrl);
-  } catch (error) {
-    showError(statusDiv, (error as Error).message);
-  } finally {
-    setButtonsDisabled(buttons, false);
+async function handleNetlifyDeploy(statusDiv: HTMLDivElement): Promise<string> {
+  const token = await getStorageData("netlifyToken");
+  if (!token) {
+    throw new Error("Netlify Token not set in Options.");
   }
+
+  const text = await getClipboardText();
+  const result = await deployToNetlify(token, text, (message) => {
+    showLoading(statusDiv, message);
+  });
+  return result.deployUrl;
+}
+
+/**
+ * Vercel デプロイ処理
+ */
+async function handleVercelDeploy(statusDiv: HTMLDivElement): Promise<string> {
+  const token = await getStorageData("vercelToken");
+  if (!token) {
+    throw new Error("Vercel Token not set in Options.");
+  }
+
+  const text = await getClipboardText();
+  const result = await deployToVercel(token, text, (message) => {
+    showLoading(statusDiv, message);
+  });
+  return result.deployUrl;
+}
+
+/**
+ * Cloudflare Pages デプロイ処理
+ */
+async function handleCloudflareDeploy(
+  statusDiv: HTMLDivElement,
+): Promise<string> {
+  const token = await getStorageData("cloudflareToken");
+  const accountId = await getStorageData("cloudflareAccountId");
+  if (!token) {
+    throw new Error("Cloudflare Token not set in Options.");
+  }
+  if (!accountId) {
+    throw new Error("Cloudflare Account ID not set in Options.");
+  }
+
+  const text = await getClipboardText();
+  const result = await deployToCloudflare(token, accountId, text, (message) => {
+    showLoading(statusDiv, message);
+  });
+  return result.deployUrl;
 }
 
 /**
  * GistHack デプロイ処理
  */
-async function handleGistDeploy(
-  statusDiv: HTMLDivElement,
-  buttons: HTMLButtonElement[],
-) {
-  setButtonsDisabled(buttons, true);
+async function handleGistDeploy(statusDiv: HTMLDivElement): Promise<string> {
+  const token = await getStorageData("githubToken");
+  if (!token) {
+    throw new Error("GitHub Token not set in Options.");
+  }
+
+  const text = await getClipboardText();
   showLoading(statusDiv, "Creating Gist...");
+  return await deployToGist(token, text);
+}
+
+/**
+ * デプロイ処理
+ */
+async function handleDeploy(
+  statusDiv: HTMLDivElement,
+  deployBtn: HTMLButtonElement,
+  provider: DeployProvider,
+) {
+  deployBtn.disabled = true;
+  showLoading(statusDiv, `Deploying to ${PROVIDER_NAMES[provider]}...`);
 
   try {
-    const token = await getStorageData("githubToken");
-    if (!token) {
-      throw new Error("GitHub Token not set in Options.");
+    let url: string;
+
+    switch (provider) {
+      case "netlify":
+        url = await handleNetlifyDeploy(statusDiv);
+        break;
+      case "vercel":
+        url = await handleVercelDeploy(statusDiv);
+        break;
+      case "cloudflare":
+        url = await handleCloudflareDeploy(statusDiv);
+        break;
+      case "gist":
+        url = await handleGistDeploy(statusDiv);
+        break;
+      default:
+        throw new Error(`Unknown provider: ${provider}`);
     }
 
-    const text = await getClipboardText();
-    const url = await deployToGist(token, text);
     await showSuccess(statusDiv, url);
   } catch (error) {
     showError(statusDiv, (error as Error).message);
   } finally {
-    setButtonsDisabled(buttons, false);
+    deployBtn.disabled = false;
   }
 }
 
 /**
  * 初期化
  */
-document.addEventListener("DOMContentLoaded", () => {
-  const { statusDiv, netlifyBtn, gistBtn } = getElements();
-  const buttons = [netlifyBtn, gistBtn];
+document.addEventListener("DOMContentLoaded", async () => {
+  const { statusDiv, deployBtn, providerHint } = getElements();
 
-  netlifyBtn.addEventListener("click", () => {
-    handleNetlifyDeploy(statusDiv, buttons);
-  });
+  // デフォルトプロバイダーを取得
+  const provider = await getDefaultProvider();
 
-  gistBtn.addEventListener("click", () => {
-    handleGistDeploy(statusDiv, buttons);
+  // ボタンのスタイルを設定
+  setButtonStyle(deployBtn, provider);
+
+  // プロバイダーのヒントを表示
+  providerHint.textContent = `Default: ${PROVIDER_NAMES[provider]}`;
+
+  // デプロイボタンのクリックイベント
+  deployBtn.addEventListener("click", () => {
+    handleDeploy(statusDiv, deployBtn, provider);
   });
 });
