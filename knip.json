@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/popup.ts", "src/options.ts", "scripts/*.ts"],
+  "project": ["src/**/*.ts", "scripts/*.ts"],
+  "ignore": ["src/**/*.test.ts"],
+  "ignoreDependencies": ["crx", "lefthook", "sinon-chrome"]
+}
