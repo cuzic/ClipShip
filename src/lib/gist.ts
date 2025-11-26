@@ -4,8 +4,16 @@
  */
 
 import ky, { HTTPError } from "ky";
-import { type GistResponse, GistResponseSchema } from "../schemas/gist";
+import { ResultAsync } from "neverthrow";
+import { type GistResponse, GistResponseSchema } from "@/schemas/gist";
 import { type ProcessedContent, processContent } from "./html";
+import {
+  ApiError,
+  AuthenticationError,
+  PermissionError,
+  ValidationError,
+  type DeployError,
+} from "./errors";
 
 const GITHUB_GIST_API_URL = "https://api.github.com/gists";
 
@@ -18,19 +26,53 @@ export function convertToGistHackUrl(rawUrl: string): string {
 }
 
 /**
- * GitHub Gistを作成する
- * @param token - GitHub Personal Access Token (gist scope)
- * @param processed - 処理済みコンテンツ
- * @param description - Gistの説明
- * @returns Gist作成結果
+ * HTTPError を DeployError に変換
  */
-async function createGist(
+function mapHttpError(error: HTTPError): DeployError {
+  if (error.response.status === 401) {
+    return AuthenticationError.invalidToken("GitHub");
+  }
+  if (error.response.status === 403) {
+    return PermissionError.insufficientScope("gist");
+  }
+  if (error.response.status === 422) {
+    return ValidationError.invalidRequest();
+  }
+  return ApiError.fromStatus(error.response.status);
+}
+
+/**
+ * unknown エラーを DeployError に変換
+ */
+function mapUnknownError(error: unknown): DeployError {
+  if (error instanceof HTTPError) {
+    return mapHttpError(error);
+  }
+  if (error instanceof Error) {
+    return new ApiError(error.message);
+  }
+  return new ApiError("Unknown error occurred");
+}
+
+/**
+ * Gist デプロイ結果の型
+ */
+interface GistDeployResult {
+  gistId: string;
+  gistUrl: string;
+  deployUrl: string;
+}
+
+/**
+ * GitHub Gistを作成する (Result版)
+ */
+function createGist(
   token: string,
   processed: ProcessedContent,
-  description = "Deployed via ClipShip",
-): Promise<GistResponse> {
-  try {
-    const response = await ky
+  description = "Deployed via ClipShip"
+): ResultAsync<GistResponse, DeployError> {
+  return ResultAsync.fromPromise(
+    ky
       .post(GITHUB_GIST_API_URL, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,44 +89,53 @@ async function createGist(
           },
         },
       })
-      .json();
-
-    return GistResponseSchema.parse(response);
-  } catch (error) {
-    if (error instanceof HTTPError) {
-      if (error.response.status === 401) {
-        throw new Error("Authentication failed. Check your GitHub token.");
-      }
-      if (error.response.status === 403) {
-        throw new Error("Permission denied. Check gist scope.");
-      }
-      if (error.response.status === 422) {
-        throw new Error("Validation error. Check your request.");
-      }
-      const body = await error.response.json().catch(() => ({}));
-      throw new Error(
-        (body as { message?: string }).message || "GitHub API Error",
-      );
-    }
-    throw error;
-  }
+      .json()
+      .then((response) => GistResponseSchema.parse(response)),
+    mapUnknownError
+  );
 }
 
 /**
- * Gistにデプロイし、GistHack URLを取得する
- * @param token - GitHub Personal Access Token
- * @param content - クリップボードから取得したコンテンツ
- * @returns GistHack URL
+ * Gistにデプロイし、GistHack URLを取得する (Result版)
+ */
+export function deployToGistResult(
+  token: string,
+  content: string
+): ResultAsync<GistDeployResult, DeployError> {
+  const processed = processContent(content);
+
+  return createGist(token, processed).andThen((gist) => {
+    const file = gist.files[processed.filename];
+    if (!file || !file.raw_url) {
+      return ResultAsync.fromPromise(
+        Promise.reject(ValidationError.invalidResponse("Missing raw_url")),
+        () => ValidationError.invalidResponse("Missing raw_url")
+      );
+    }
+
+    return ResultAsync.fromSafePromise(
+      Promise.resolve({
+        gistId: gist.id,
+        gistUrl: gist.html_url,
+        deployUrl: convertToGistHackUrl(file.raw_url),
+      })
+    );
+  });
+}
+
+/**
+ * Gistにデプロイし、GistHack URLを取得する (後方互換性のため維持)
+ * @deprecated deployToGistResult を使用してください
  */
 export async function deployToGist(
   token: string,
-  content: string,
+  content: string
 ): Promise<string> {
-  const processed = processContent(content);
-  const gist = await createGist(token, processed);
-  const file = gist.files[processed.filename];
-  if (!file || !file.raw_url) {
-    throw new Error("Failed to get raw_url from created gist");
+  const result = await deployToGistResult(token, content);
+
+  if (result.isErr()) {
+    throw result.error;
   }
-  return convertToGistHackUrl(file.raw_url);
+
+  return result.value.deployUrl;
 }
