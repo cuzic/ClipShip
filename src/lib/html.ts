@@ -3,12 +3,34 @@
  * クリップボードのテキストを完全なHTML構造に埋め込む
  */
 
+import { Marked, marked } from "marked";
+import { type ContentInfo, detectContentType } from "./detect";
+
+export interface ProcessedContent {
+  content: string;
+  filename: string;
+  mimeType: string;
+  contentInfo: ContentInfo;
+}
+
 /**
- * テキストを完全なHTMLドキュメントに埋め込む
- * @param content - 埋め込むHTMLコンテンツ
- * @returns 完全なHTMLドキュメント
+ * HTML が完全なドキュメントかどうかを判定
  */
-export function createHtml(content: string): string {
+function isCompleteHtmlDocument(content: string): boolean {
+  const trimmed = content.trim().toLowerCase();
+  return trimmed.startsWith("<!doctype") || trimmed.startsWith("<html");
+}
+
+/**
+ * HTML コンテンツを処理
+ * - 完全な HTML ドキュメントならそのまま
+ * - フラグメントなら HTML テンプレートで包む
+ */
+function processHtml(content: string): string {
+  if (isCompleteHtmlDocument(content)) {
+    return content;
+  }
+
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -20,4 +42,252 @@ export function createHtml(content: string): string {
 ${content}
 </body>
 </html>`;
+}
+
+/**
+ * Markdown スタイル
+ */
+const MARKDOWN_STYLES = `
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    color: #333;
+  }
+  pre {
+    background: #f4f4f4;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: 4px;
+  }
+  code {
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 4px solid #ddd;
+    margin: 0;
+    padding-left: 16px;
+    color: #666;
+  }
+  img {
+    max-width: 100%;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  th {
+    background: #f4f4f4;
+  }
+  .mermaid {
+    text-align: center;
+    margin: 20px 0;
+  }
+</style>
+`;
+
+/**
+ * Mermaid.js CDN スクリプト
+ */
+const MERMAID_SCRIPT = `
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+`;
+
+/**
+ * Mermaid 図のキーワード（言語ラベルがなくても検出）
+ */
+const MERMAID_KEYWORDS = [
+  "graph ",
+  "graph\n",
+  "flowchart ",
+  "flowchart\n",
+  "sequenceDiagram",
+  "classDiagram",
+  "stateDiagram",
+  "erDiagram",
+  "gantt",
+  "pie ",
+  "pie\n",
+  "gitGraph",
+  "mindmap",
+  "timeline",
+  "quadrantChart",
+  "xychart",
+  "sankey",
+];
+
+/**
+ * Mermaid 記法が含まれているか判定
+ */
+function containsMermaid(content: string): boolean {
+  // ```mermaid の明示的なラベル
+  if (/```mermaid/i.test(content)) {
+    return true;
+  }
+  // コードブロック内に Mermaid キーワードがあるか
+  const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/g;
+  const matches = content.matchAll(codeBlockRegex);
+  for (const match of matches) {
+    const codeContent = match[1].trimStart();
+    if (MERMAID_KEYWORDS.some((keyword) => codeContent.startsWith(keyword))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * コードブロックが Mermaid 図かどうか判定
+ */
+function isMermaidCode(text: string, lang?: string): boolean {
+  if (lang === "mermaid") {
+    return true;
+  }
+  // 言語ラベルがない場合、内容で判定
+  if (!lang) {
+    const trimmed = text.trimStart();
+    return MERMAID_KEYWORDS.some((keyword) => trimmed.startsWith(keyword));
+  }
+  return false;
+}
+
+/**
+ * Mermaid 対応の marked インスタンスを作成
+ */
+function createMermaidMarked() {
+  const mermaidMarked = new Marked();
+
+  mermaidMarked.use({
+    renderer: {
+      code({ text, lang }: { text: string; lang?: string }) {
+        if (isMermaidCode(text, lang)) {
+          return `<pre class="mermaid">${text}</pre>`;
+        }
+        // デフォルトのコードブロック処理
+        const escaped = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        const langClass = lang ? ` class="language-${lang}"` : "";
+        return `<pre><code${langClass}>${escaped}</code></pre>`;
+      },
+    },
+  });
+
+  return mermaidMarked;
+}
+
+/**
+ * Markdown コンテンツを HTML に変換
+ */
+function processMarkdown(content: string): string {
+  const hasMermaid = containsMermaid(content);
+
+  // Mermaid がある場合は専用の marked インスタンスを使用
+  const htmlContent = hasMermaid
+    ? createMermaidMarked().parse(content)
+    : marked(content);
+
+  const mermaidScript = hasMermaid ? MERMAID_SCRIPT : "";
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClipShip Page</title>
+${MARKDOWN_STYLES}
+</head>
+<body>
+${htmlContent}
+${mermaidScript}
+</body>
+</html>`;
+}
+
+/**
+ * テキストコンテンツを HTML に変換（pre タグで整形）
+ */
+function processText(content: string): string {
+  const escaped = content
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClipShip Page</title>
+<style>
+  body {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    line-height: 1.5;
+    padding: 20px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+<pre>${escaped}</pre>
+</body>
+</html>`;
+}
+
+/**
+ * コンテンツを検出・処理して HTML に変換
+ * @param content - クリップボードから取得したコンテンツ
+ * @returns 処理済みコンテンツと関連情報
+ */
+export function processContent(content: string): ProcessedContent {
+  const contentInfo = detectContentType(content);
+
+  let processedContent: string;
+  switch (contentInfo.type) {
+    case "html":
+      processedContent = processHtml(content);
+      break;
+    case "markdown":
+      processedContent = processMarkdown(content);
+      break;
+    default:
+      processedContent = processText(content);
+  }
+
+  // すべてのコンテンツタイプで HTML として出力
+  return {
+    content: processedContent,
+    filename: "index.html",
+    mimeType: "text/html",
+    contentInfo,
+  };
+}
+
+/**
+ * テキストを完全なHTMLドキュメントに埋め込む (後方互換性のため維持)
+ * @param content - 埋め込むHTMLコンテンツ
+ * @returns 完全なHTMLドキュメント
+ * @deprecated processContent を使用してください
+ */
+export function createHtml(content: string): string {
+  return processHtml(content);
 }
