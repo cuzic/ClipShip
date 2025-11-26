@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { detectContentType } from "../../src/lib/detect";
+import { detectContentType } from "@/lib/detect";
 
 describe("detectContentType", () => {
   describe("HTML detection", () => {
