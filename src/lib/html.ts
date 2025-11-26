@@ -327,12 +327,3 @@ export function processContent(content: string): ProcessedContent {
   };
 }
 
-/**
- * テキストを完全なHTMLドキュメントに埋め込む (後方互換性のため維持)
- * @param content - 埋め込むHTMLコンテンツ
- * @returns 完全なHTMLドキュメント
- * @deprecated processContent を使用してください
- */
-export function createHtml(content: string): string {
-  return processHtml(content);
-}
