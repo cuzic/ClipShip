@@ -20,12 +20,15 @@ function getElements() {
 }
 
 /**
- * ステータス表示: 成功
+ * ステータス表示: 成功 & 新しいタブで開く
  */
 async function showSuccess(statusDiv: HTMLDivElement, url: string) {
   statusDiv.innerHTML = `<span class="success">Success!</span><br><a href="${url}" target="_blank">${url}</a>`;
   await navigator.clipboard.writeText(url);
   statusDiv.innerHTML += "<br><br>Copied to clipboard!";
+
+  // 新しいタブで開く
+  chrome.tabs.create({ url, active: true });
 }
 
 /**
@@ -71,7 +74,7 @@ async function handleNetlifyDeploy(
   buttons: HTMLButtonElement[],
 ) {
   setButtonsDisabled(buttons, true);
-  showLoading(statusDiv, "Packing & Uploading to Netlify...");
+  showLoading(statusDiv, "Deploying to Netlify...");
 
   try {
     const token = await getStorageData("netlifyToken");
@@ -80,8 +83,10 @@ async function handleNetlifyDeploy(
     }
 
     const text = await getClipboardText();
-    const result = await deployToNetlify(token, text);
-    await showSuccess(statusDiv, result.ssl_url ?? result.url);
+    const result = await deployToNetlify(token, text, (message) => {
+      showLoading(statusDiv, message);
+    });
+    await showSuccess(statusDiv, result.deployUrl);
   } catch (error) {
     showError(statusDiv, (error as Error).message);
   } finally {
