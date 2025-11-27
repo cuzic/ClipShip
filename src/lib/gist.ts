@@ -14,6 +14,7 @@ import {
   ValidationError,
 } from "./errors";
 import { type ProcessedContent, processContent } from "./html";
+import type { CssTheme } from "./storage";
 
 const GITHUB_GIST_API_URL = "https://api.github.com/gists";
 
@@ -101,8 +102,9 @@ function createGist(
 export function deployToGistResult(
   token: string,
   content: string,
+  theme: CssTheme = "default",
 ): ResultAsync<GistDeployResult, DeployError> {
-  const processed = processContent(content);
+  const processed = processContent(content, theme);
 
   return createGist(token, processed).andThen((gist) => {
     const file = gist.files[processed.filename];
@@ -130,8 +132,9 @@ export function deployToGistResult(
 export async function deployToGist(
   token: string,
   content: string,
+  theme: CssTheme = "default",
 ): Promise<string> {
-  const result = await deployToGistResult(token, content);
+  const result = await deployToGistResult(token, content, theme);
 
   if (result.isErr()) {
     throw result.error;

@@ -16,7 +16,7 @@ import {
 } from "./deploy-utils";
 import { ApiError, type DeployError } from "./errors";
 import { processContent } from "./html";
-import { getStorageData, setStorageData } from "./storage";
+import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
 const NETLIFY_API_URL = "https://api.netlify.com/api/v1/sites";
 const NETLIFY_DEPLOYS_API_URL = "https://api.netlify.com/api/v1/deploys";
@@ -293,6 +293,7 @@ export async function deployToNetlifyResult(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<ResultAsync<NetlifyDeployResult, DeployError>> {
   onProgress?.("Preparing site...");
 
@@ -308,7 +309,7 @@ export async function deployToNetlifyResult(
 
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
-  const processed = processContent(content);
+  const processed = processContent(content, theme);
 
   // ファイル情報を準備
   const filePath = `${subdir}/${processed.filename}`;
@@ -381,8 +382,14 @@ export async function deployToNetlify(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<NetlifyDeployResult> {
-  const resultAsync = await deployToNetlifyResult(token, content, onProgress);
+  const resultAsync = await deployToNetlifyResult(
+    token,
+    content,
+    onProgress,
+    theme,
+  );
   const result = await resultAsync;
 
   if (result.isErr()) {

@@ -21,7 +21,7 @@ import {
 } from "./deploy-utils";
 import type { DeployError } from "./errors";
 import { processContent } from "./html";
-import { getStorageData, setStorageData } from "./storage";
+import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
 const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
 const CLIPSHIP_PROJECT_PREFIX = "clipship-";
@@ -231,6 +231,7 @@ export async function deployToCloudflareResult(
   accountId: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<ResultAsync<CloudflareDeployResult, DeployError>> {
   onProgress?.("Preparing project...");
 
@@ -246,7 +247,7 @@ export async function deployToCloudflareResult(
 
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
-  const processed = processContent(content);
+  const processed = processContent(content, theme);
   const filePath = `${subdir}/${processed.filename}`;
 
   // ファイルハッシュを計算
@@ -291,12 +292,14 @@ export async function deployToCloudflare(
   accountId: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<CloudflareDeployResult> {
   const resultAsync = await deployToCloudflareResult(
     token,
     accountId,
     content,
     onProgress,
+    theme,
   );
   const result = await resultAsync;
 

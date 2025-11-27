@@ -21,7 +21,7 @@ import {
 } from "./deploy-utils";
 import type { DeployError } from "./errors";
 import { processContent } from "./html";
-import { getStorageData, setStorageData } from "./storage";
+import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
 const VERCEL_API_URL = "https://api.vercel.com";
 const CLIPSHIP_PROJECT_PREFIX = "clipship-";
@@ -182,6 +182,7 @@ export async function deployToVercelResult(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<ResultAsync<VercelDeployResult, DeployError>> {
   onProgress?.("Preparing project...");
 
@@ -197,7 +198,7 @@ export async function deployToVercelResult(
 
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
-  const processed = processContent(content);
+  const processed = processContent(content, theme);
   const filePath = `${subdir}/${processed.filename}`;
 
   onProgress?.("Creating deployment...");
@@ -236,8 +237,14 @@ export async function deployToVercel(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
+  theme: CssTheme = "default",
 ): Promise<VercelDeployResult> {
-  const resultAsync = await deployToVercelResult(token, content, onProgress);
+  const resultAsync = await deployToVercelResult(
+    token,
+    content,
+    onProgress,
+    theme,
+  );
   const result = await resultAsync;
 
   if (result.isErr()) {
