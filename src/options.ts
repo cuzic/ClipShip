@@ -82,30 +82,15 @@ function getElements(): OptionsElements | null {
 }
 
 /**
- * 選択されたプロバイダーのスタイルを更新
+ * 選択されたラジオボタンのスタイルを更新
  */
-function updateProviderStyles(
+function updateSelectedStyles(
   radioItems: NodeListOf<HTMLLabelElement>,
-  selectedProvider: string,
+  selectedValue: string,
+  dataAttribute: "provider" | "theme",
 ) {
   for (const item of radioItems) {
-    if (item.dataset.provider === selectedProvider) {
-      item.classList.add("selected");
-    } else {
-      item.classList.remove("selected");
-    }
-  }
-}
-
-/**
- * 選択されたテーマのスタイルを更新
- */
-function updateThemeStyles(
-  radioItems: NodeListOf<HTMLLabelElement>,
-  selectedTheme: string,
-) {
-  for (const item of radioItems) {
-    if (item.dataset.theme === selectedTheme) {
+    if (item.dataset[dataAttribute] === selectedValue) {
       item.classList.add("selected");
     } else {
       item.classList.remove("selected");
@@ -292,7 +277,7 @@ async function loadSettings(
       radio.checked = true;
     }
   }
-  updateProviderStyles(providerRadioItems, defaultProvider);
+  updateSelectedStyles(providerRadioItems, defaultProvider, "provider");
 
   // CSS テーマを読み込み
   const cssTheme = await getCssTheme();
@@ -301,33 +286,22 @@ async function loadSettings(
       radio.checked = true;
     }
   }
-  updateThemeStyles(themeRadioItems, cssTheme);
+  updateSelectedStyles(themeRadioItems, cssTheme, "theme");
 }
 
 /**
- * 選択されたプロバイダーを取得
+ * 選択されたラジオボタンの値を取得
  */
-function getSelectedProvider(
-  providerRadios: NodeListOf<HTMLInputElement>,
-): DeployProvider {
-  for (const radio of providerRadios) {
+function getSelectedRadioValue<T extends string>(
+  radios: NodeListOf<HTMLInputElement>,
+  defaultValue: T,
+): T {
+  for (const radio of radios) {
     if (radio.checked) {
-      return radio.value as DeployProvider;
+      return radio.value as T;
     }
   }
-  return "netlify";
-}
-
-/**
- * 選択されたテーマを取得
- */
-function getSelectedTheme(themeRadios: NodeListOf<HTMLInputElement>): CssTheme {
-  for (const radio of themeRadios) {
-    if (radio.checked) {
-      return radio.value as CssTheme;
-    }
-  }
-  return "default";
+  return defaultValue;
 }
 
 /**
@@ -369,21 +343,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // プロバイダーラジオボタンの変更イベント
   for (const radio of providerRadios) {
     radio.addEventListener("change", () => {
-      updateProviderStyles(providerRadioItems, radio.value);
+      updateSelectedStyles(providerRadioItems, radio.value, "provider");
     });
   }
 
   // テーマラジオボタンの変更イベント
   for (const radio of themeRadios) {
     radio.addEventListener("change", () => {
-      updateThemeStyles(themeRadioItems, radio.value);
+      updateSelectedStyles(themeRadioItems, radio.value, "theme");
     });
   }
 
   // 保存ボタンのクリックイベント
   saveButton.addEventListener("click", () => {
-    const selectedProvider = getSelectedProvider(providerRadios);
-    const selectedTheme = getSelectedTheme(themeRadios);
+    const selectedProvider = getSelectedRadioValue<DeployProvider>(
+      providerRadios,
+      "netlify",
+    );
+    const selectedTheme = getSelectedRadioValue<CssTheme>(
+      themeRadios,
+      "default",
+    );
     saveSettings(
       netlifyTokenInput.value,
       vercelTokenInput.value,
