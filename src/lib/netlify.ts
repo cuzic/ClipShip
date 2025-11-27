@@ -6,13 +6,12 @@
 import { type NetlifySite, NetlifySiteSchema } from "@/schemas/netlify";
 import ky from "ky";
 import { nanoid } from "nanoid";
-import { ResultAsync } from "neverthrow";
+import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { z } from "zod";
 import {
   type ProjectManager,
   createUnknownErrorMapper,
   getOrCreateProject,
-  rejectWithError,
 } from "./deploy-utils";
 import { ApiError, type DeployError } from "./errors";
 import { sha1 } from "./hash";
@@ -155,7 +154,7 @@ function createNetlifySiteManager(token: string): ProjectManager<NetlifySite> {
  */
 function getOrCreateClipShipSite(
   token: string,
-): Promise<ResultAsync<NetlifySite, DeployError>> {
+): ResultAsync<NetlifySite, DeployError> {
   return getOrCreateProject(createNetlifySiteManager(token));
 }
 
@@ -180,7 +179,20 @@ function getDeploy(
 /**
  * デプロイが ready になるまでポーリング
  */
-async function waitForDeployReady(
+function waitForDeployReady(
+  token: string,
+  deployId: string,
+  onProgress?: (state: string) => void,
+): ResultAsync<Deploy, DeployError> {
+  return ResultAsync.fromSafePromise(
+    pollDeployStatus(token, deployId, onProgress),
+  ).andThen((result) => result);
+}
+
+/**
+ * デプロイ状態のポーリング処理（内部実装）
+ */
+async function pollDeployStatus(
   token: string,
   deployId: string,
   onProgress?: (state: string) => void,
@@ -189,34 +201,24 @@ async function waitForDeployReady(
     const deployResult = await getDeploy(token, deployId);
 
     if (deployResult.isErr()) {
-      return ResultAsync.fromSafePromise(
-        Promise.resolve(deployResult as unknown as Deploy),
-      ).mapErr(() => deployResult.error);
+      return errAsync(deployResult.error);
     }
 
     const deploy = deployResult.value;
-
-    if (onProgress) {
-      onProgress(deploy.state);
-    }
+    onProgress?.(deploy.state);
 
     if (deploy.state === "ready") {
-      return ResultAsync.fromSafePromise(Promise.resolve(deploy));
+      return okAsync(deploy);
     }
 
     if (deploy.state === "error") {
-      return ResultAsync.fromPromise(
-        Promise.reject(ApiError.deployFailed()),
-        () => ApiError.deployFailed(),
-      );
+      return errAsync(ApiError.deployFailed());
     }
 
     await sleep(POLL_INTERVAL_MS);
   }
 
-  return ResultAsync.fromPromise(Promise.reject(ApiError.deployTimeout()), () =>
-    ApiError.deployTimeout(),
-  );
+  return errAsync(ApiError.deployTimeout());
 }
 
 /**
@@ -279,87 +281,56 @@ function uploadRequiredFiles(
 /**
  * Netlifyにデプロイする (Result版)
  */
-export async function deployToNetlifyResult(
+export function deployToNetlifyResult(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
-): Promise<ResultAsync<NetlifyDeployResult, DeployError>> {
-  onProgress?.("Preparing site...");
-
-  // サイトを取得または作成
-  const siteResultAsync = await getOrCreateClipShipSite(token);
-  const siteResult = await siteResultAsync;
-
-  if (siteResult.isErr()) {
-    return rejectWithError(siteResult.error);
-  }
-
-  const site = siteResult.value;
-
+): ResultAsync<NetlifyDeployResult, DeployError> {
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
   const processed = processContent(content, theme);
-
-  // ファイル情報を準備
   const filePath = `${subdir}/${processed.filename}`;
-  const fileHash = await sha1(processed.content);
 
-  const files: FileInfo[] = [
-    {
-      path: filePath,
-      content: processed.content,
-      hash: fileHash,
-    },
-  ];
+  onProgress?.("Preparing site...");
 
-  onProgress?.("Creating deploy...");
+  return getOrCreateClipShipSite(token).andThen((site) =>
+    // ファイルハッシュを計算
+    ResultAsync.fromSafePromise(sha1(processed.content)).andThen((fileHash) => {
+      const files: FileInfo[] = [
+        { path: filePath, content: processed.content, hash: fileHash },
+      ];
 
-  // File Digest API でデプロイを作成
-  const deployResult = await createDigestDeploy(token, site.id, files);
+      onProgress?.("Creating deploy...");
 
-  if (deployResult.isErr()) {
-    return rejectWithError(deployResult.error);
-  }
-
-  const deploy = deployResult.value;
-
-  // 必要なファイルをアップロード
-  if (deploy.required && deploy.required.length > 0) {
-    onProgress?.("Uploading files...");
-    const uploadResult = await uploadRequiredFiles(
-      token,
-      deploy.id,
-      files,
-      deploy.required,
-    );
-    if (uploadResult.isErr()) {
-      return rejectWithError(uploadResult.error);
-    }
-  }
-
-  onProgress?.("Processing...");
-
-  // デプロイが ready になるまでポーリング
-  const readyResultAsync = await waitForDeployReady(token, deploy.id, (state) =>
-    onProgress?.(`Processing (${state})...`),
-  );
-
-  const readyResult = await readyResultAsync;
-
-  if (readyResult.isErr()) {
-    return rejectWithError(readyResult.error);
-  }
-
-  // 最終 URL を構築
-  const baseUrl = site.ssl_url ?? site.url;
-  const deployUrl = `${baseUrl}/${subdir}/${processed.filename}`;
-
-  return ResultAsync.fromSafePromise(
-    Promise.resolve({
-      siteId: site.id,
-      siteName: site.name,
-      deployUrl,
+      return createDigestDeploy(token, site.id, files)
+        .andThen((deploy) => {
+          // 必要なファイルをアップロード
+          if (deploy.required && deploy.required.length > 0) {
+            onProgress?.("Uploading files...");
+            return uploadRequiredFiles(
+              token,
+              deploy.id,
+              files,
+              deploy.required,
+            ).map(() => deploy);
+          }
+          return okAsync(deploy);
+        })
+        .andThen((deploy) => {
+          onProgress?.("Processing...");
+          return waitForDeployReady(token, deploy.id, (state) =>
+            onProgress?.(`Processing (${state})...`),
+          );
+        })
+        .map(() => {
+          const baseUrl = site.ssl_url ?? site.url;
+          return {
+            siteId: site.id,
+            siteName: site.name,
+            deployUrl: `${baseUrl}/${subdir}/${processed.filename}`,
+          };
+        });
     }),
   );
 }
@@ -374,13 +345,7 @@ export async function deployToNetlify(
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
 ): Promise<NetlifyDeployResult> {
-  const resultAsync = await deployToNetlifyResult(
-    token,
-    content,
-    onProgress,
-    theme,
-  );
-  const result = await resultAsync;
+  const result = await deployToNetlifyResult(token, content, onProgress, theme);
 
   if (result.isErr()) {
     throw result.error;
