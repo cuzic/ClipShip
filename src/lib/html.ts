@@ -11,6 +11,7 @@ import markdownItFootnote from "markdown-it-footnote";
 // @ts-expect-error: No type definitions available
 import markdownItTaskLists from "markdown-it-task-lists";
 import { type ContentInfo, detectContentType } from "./detect";
+import type { CssTheme } from "./storage";
 
 export interface ProcessedContent {
   content: string;
@@ -64,15 +65,40 @@ const HIGHLIGHT_JS_CDN = `
 /**
  * KaTeX CDN (数式レンダリング)
  */
-const KATEX_CDN = `
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
-`;
+const KATEX_CDN = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">`;
 
 /**
- * Markdown スタイル
+ * CSS テーマの CDN リンク
  */
-const MARKDOWN_STYLES = `
-${KATEX_CDN}
+const CSS_THEME_CDN: Record<CssTheme, string> = {
+  default: "",
+  github: `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-light.css">`,
+  "github-dark": `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-dark.css">`,
+  water: `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/light.css">`,
+  "water-dark": `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">`,
+  pico: `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">`,
+  sakura: `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sakura.css/css/sakura.css">`,
+};
+
+/**
+ * テーマに応じたコンテンツラッパー
+ * - github-markdown-css: <article class="markdown-body"> でラップ
+ * - pico classless: <main> でラップ（classless 版の要件）
+ */
+function wrapContent(content: string, theme: CssTheme): string {
+  if (theme === "github" || theme === "github-dark") {
+    return `<article class="markdown-body">\n${content}\n</article>`;
+  }
+  if (theme === "pico") {
+    return `<main>\n${content}\n</main>`;
+  }
+  return content;
+}
+
+/**
+ * デフォルトスタイル（CSS テーマを使用しない場合）
+ */
+const DEFAULT_STYLES = `
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -161,6 +187,41 @@ ${KATEX_CDN}
   }
 </style>
 `;
+
+/**
+ * github-markdown-css 用の追加スタイル
+ */
+const GITHUB_EXTRA_STYLES = `
+<style>
+  .markdown-body {
+    box-sizing: border-box;
+    min-width: 200px;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 45px;
+  }
+  @media (max-width: 767px) {
+    .markdown-body {
+      padding: 15px;
+    }
+  }
+</style>
+`;
+
+/**
+ * テーマに応じたスタイルを取得
+ */
+function getThemeStyles(theme: CssTheme): string {
+  if (theme === "default") {
+    return DEFAULT_STYLES;
+  }
+
+  const cdnLink = CSS_THEME_CDN[theme];
+  const extraStyles =
+    theme === "github" || theme === "github-dark" ? GITHUB_EXTRA_STYLES : "";
+
+  return `${cdnLink}\n${extraStyles}`;
+}
 
 /**
  * Mermaid.js CDN スクリプト
@@ -290,7 +351,7 @@ function createMermaidMarkdownIt() {
 /**
  * Markdown コンテンツを HTML に変換
  */
-function processMarkdown(content: string): string {
+function processMarkdown(content: string, theme: CssTheme = "default"): string {
   const hasMermaid = containsMermaid(content);
 
   // Mermaid がある場合は専用の markdown-it インスタンスを使用
@@ -298,6 +359,8 @@ function processMarkdown(content: string): string {
   const htmlContent = md.render(content);
 
   const mermaidScript = hasMermaid ? MERMAID_SCRIPT : "";
+  const themeStyles = getThemeStyles(theme);
+  const wrappedContent = wrapContent(htmlContent, theme);
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -305,10 +368,11 @@ function processMarkdown(content: string): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClipShip Page</title>
-${MARKDOWN_STYLES}
+${KATEX_CDN}
+${themeStyles}
 </head>
 <body>
-${htmlContent}
+${wrappedContent}
 ${HIGHLIGHT_JS_CDN}
 ${mermaidScript}
 </body>
@@ -348,9 +412,13 @@ function processText(content: string): string {
 /**
  * コンテンツを検出・処理して HTML に変換
  * @param content - クリップボードから取得したコンテンツ
+ * @param theme - CSS テーマ（Markdown の場合のみ適用）
  * @returns 処理済みコンテンツと関連情報
  */
-export function processContent(content: string): ProcessedContent {
+export function processContent(
+  content: string,
+  theme: CssTheme = "default",
+): ProcessedContent {
   const contentInfo = detectContentType(content);
 
   let processedContent: string;
@@ -359,7 +427,7 @@ export function processContent(content: string): ProcessedContent {
       processedContent = processHtml(content);
       break;
     case "markdown":
-      processedContent = processMarkdown(content);
+      processedContent = processMarkdown(content, theme);
       break;
     default:
       processedContent = processText(content);
