@@ -3,7 +3,7 @@
  * クリップボードの内容から HTML / Markdown / テキストを判定
  */
 
-type ContentType = "html" | "markdown" | "text";
+export type ContentType = "html" | "markdown" | "text";
 
 export interface ContentInfo {
   type: ContentType;

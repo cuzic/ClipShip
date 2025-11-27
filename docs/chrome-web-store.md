@@ -24,6 +24,7 @@ Turn your clipboard into a live webpage in seconds! ClipShip is a developer-frie
 🚀 FEATURES
 
 • One-Click Deploy - Set your default provider in Options, then deploy with a single click
+• Deploy History - View past deployments, edit titles, and copy URLs
 • Smart Content Detection - Automatically detects HTML, Markdown, or plain text
 • Beautiful Markdown Rendering - Full Markdown support with GitHub-style formatting
 • Syntax Highlighting - 20+ programming languages with highlight.js

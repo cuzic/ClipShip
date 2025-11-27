@@ -4,13 +4,16 @@
  */
 
 import { deployToCloudflare } from "./lib/cloudflare";
+import { type ContentType, detectContentType } from "./lib/detect";
 import { deployToGist } from "./lib/gist";
 import { deployToNetlify } from "./lib/netlify";
 import {
   type DeployProvider,
+  addDeployHistory,
   getDefaultProvider,
   getStorageData,
 } from "./lib/storage";
+import { extractTitle } from "./lib/title";
 import { deployToVercel } from "./lib/vercel";
 
 /**
@@ -71,6 +74,15 @@ function showLoading(statusDiv: HTMLDivElement, message: string) {
 }
 
 /**
+ * デプロイ結果
+ */
+interface DeployResult {
+  url: string;
+  content: string;
+  contentType: ContentType;
+}
+
+/**
  * クリップボードからテキストを取得
  */
 async function getClipboardText(): Promise<string> {
@@ -84,33 +96,47 @@ async function getClipboardText(): Promise<string> {
 /**
  * Netlify デプロイ処理
  */
-async function handleNetlifyDeploy(statusDiv: HTMLDivElement): Promise<string> {
+async function handleNetlifyDeploy(
+  statusDiv: HTMLDivElement,
+): Promise<DeployResult> {
   const token = await getStorageData("netlifyToken");
   if (!token) {
     throw new Error("Netlify Token not set in Options.");
   }
 
   const text = await getClipboardText();
+  const contentInfo = detectContentType(text);
   const result = await deployToNetlify(token, text, (message) => {
     showLoading(statusDiv, message);
   });
-  return result.deployUrl;
+  return {
+    url: result.deployUrl,
+    content: text,
+    contentType: contentInfo.type,
+  };
 }
 
 /**
  * Vercel デプロイ処理
  */
-async function handleVercelDeploy(statusDiv: HTMLDivElement): Promise<string> {
+async function handleVercelDeploy(
+  statusDiv: HTMLDivElement,
+): Promise<DeployResult> {
   const token = await getStorageData("vercelToken");
   if (!token) {
     throw new Error("Vercel Token not set in Options.");
   }
 
   const text = await getClipboardText();
+  const contentInfo = detectContentType(text);
   const result = await deployToVercel(token, text, (message) => {
     showLoading(statusDiv, message);
   });
-  return result.deployUrl;
+  return {
+    url: result.deployUrl,
+    content: text,
+    contentType: contentInfo.type,
+  };
 }
 
 /**
@@ -118,7 +144,7 @@ async function handleVercelDeploy(statusDiv: HTMLDivElement): Promise<string> {
  */
 async function handleCloudflareDeploy(
   statusDiv: HTMLDivElement,
-): Promise<string> {
+): Promise<DeployResult> {
   const token = await getStorageData("cloudflareToken");
   const accountId = await getStorageData("cloudflareAccountId");
   if (!token) {
@@ -129,24 +155,33 @@ async function handleCloudflareDeploy(
   }
 
   const text = await getClipboardText();
+  const contentInfo = detectContentType(text);
   const result = await deployToCloudflare(token, accountId, text, (message) => {
     showLoading(statusDiv, message);
   });
-  return result.deployUrl;
+  return {
+    url: result.deployUrl,
+    content: text,
+    contentType: contentInfo.type,
+  };
 }
 
 /**
  * GistHack デプロイ処理
  */
-async function handleGistDeploy(statusDiv: HTMLDivElement): Promise<string> {
+async function handleGistDeploy(
+  statusDiv: HTMLDivElement,
+): Promise<DeployResult> {
   const token = await getStorageData("githubToken");
   if (!token) {
     throw new Error("GitHub Token not set in Options.");
   }
 
   const text = await getClipboardText();
+  const contentInfo = detectContentType(text);
   showLoading(statusDiv, "Creating Gist...");
-  return await deployToGist(token, text);
+  const url = await deployToGist(token, text);
+  return { url, content: text, contentType: contentInfo.type };
 }
 
 /**
@@ -161,26 +196,35 @@ async function handleDeploy(
   showLoading(statusDiv, `Deploying to ${PROVIDER_NAMES[provider]}...`);
 
   try {
-    let url: string;
+    let result: DeployResult;
 
     switch (provider) {
       case "netlify":
-        url = await handleNetlifyDeploy(statusDiv);
+        result = await handleNetlifyDeploy(statusDiv);
         break;
       case "vercel":
-        url = await handleVercelDeploy(statusDiv);
+        result = await handleVercelDeploy(statusDiv);
         break;
       case "cloudflare":
-        url = await handleCloudflareDeploy(statusDiv);
+        result = await handleCloudflareDeploy(statusDiv);
         break;
       case "gist":
-        url = await handleGistDeploy(statusDiv);
+        result = await handleGistDeploy(statusDiv);
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
 
-    await showSuccess(statusDiv, url);
+    // 履歴に保存
+    const title = extractTitle(result.content, result.contentType);
+    await addDeployHistory({
+      title,
+      url: result.url,
+      provider,
+      contentType: result.contentType,
+    });
+
+    await showSuccess(statusDiv, result.url);
   } catch (error) {
     showError(statusDiv, (error as Error).message);
   } finally {

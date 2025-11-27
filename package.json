@@ -4,8 +4,8 @@
   "type": "module",
   "description": "Deploy clipboard HTML to Netlify or GitHub Gist instantly",
   "scripts": {
-    "dev": "bun build src/popup.ts src/options.ts --outdir dist --watch",
-    "build": "bun build src/popup.ts src/options.ts --outdir dist --minify && cp -r public/* dist/",
+    "dev": "bun build src/popup.ts src/options.ts src/history.ts --outdir dist --watch",
+    "build": "bun build src/popup.ts src/options.ts src/history.ts --outdir dist --minify && cp -r public/* dist/",
     "lint": "biome check .",
     "lint:ext": "web-ext lint --source-dir dist",
     "format": "biome format --write .",

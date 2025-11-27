@@ -114,6 +114,24 @@
       color: #6a737d;
       text-align: center;
     }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .footer-links a {
+      color: #6a737d;
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      color: #0066cc;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -121,6 +139,10 @@
   <button id="btn-deploy" type="button">Deploy</button>
   <div class="provider-hint" id="provider-hint"></div>
   <div id="status"></div>
+  <div class="footer-links">
+    <a href="history.html" target="_blank">History</a>
+    <a href="options.html" target="_blank">Options</a>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
