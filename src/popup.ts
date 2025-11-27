@@ -8,8 +8,10 @@ import { type ContentType, detectContentType } from "./lib/detect";
 import { deployToGist } from "./lib/gist";
 import { deployToNetlify } from "./lib/netlify";
 import {
+  type CssTheme,
   type DeployProvider,
   addDeployHistory,
+  getCssTheme,
   getDefaultProvider,
   getStorageData,
 } from "./lib/storage";
@@ -115,6 +117,7 @@ async function getClipboardText(): Promise<string> {
  */
 async function handleNetlifyDeploy(
   statusDiv: HTMLDivElement,
+  theme: CssTheme,
 ): Promise<DeployResult> {
   const token = await getStorageData("netlifyToken");
   if (!token) {
@@ -123,9 +126,14 @@ async function handleNetlifyDeploy(
 
   const text = await getClipboardText();
   const contentInfo = detectContentType(text);
-  const result = await deployToNetlify(token, text, (message) => {
-    showLoading(statusDiv, message);
-  });
+  const result = await deployToNetlify(
+    token,
+    text,
+    (message) => {
+      showLoading(statusDiv, message);
+    },
+    theme,
+  );
   return {
     url: result.deployUrl,
     content: text,
@@ -138,6 +146,7 @@ async function handleNetlifyDeploy(
  */
 async function handleVercelDeploy(
   statusDiv: HTMLDivElement,
+  theme: CssTheme,
 ): Promise<DeployResult> {
   const token = await getStorageData("vercelToken");
   if (!token) {
@@ -146,9 +155,14 @@ async function handleVercelDeploy(
 
   const text = await getClipboardText();
   const contentInfo = detectContentType(text);
-  const result = await deployToVercel(token, text, (message) => {
-    showLoading(statusDiv, message);
-  });
+  const result = await deployToVercel(
+    token,
+    text,
+    (message) => {
+      showLoading(statusDiv, message);
+    },
+    theme,
+  );
   return {
     url: result.deployUrl,
     content: text,
@@ -161,6 +175,7 @@ async function handleVercelDeploy(
  */
 async function handleCloudflareDeploy(
   statusDiv: HTMLDivElement,
+  theme: CssTheme,
 ): Promise<DeployResult> {
   const token = await getStorageData("cloudflareToken");
   const accountId = await getStorageData("cloudflareAccountId");
@@ -173,9 +188,15 @@ async function handleCloudflareDeploy(
 
   const text = await getClipboardText();
   const contentInfo = detectContentType(text);
-  const result = await deployToCloudflare(token, accountId, text, (message) => {
-    showLoading(statusDiv, message);
-  });
+  const result = await deployToCloudflare(
+    token,
+    accountId,
+    text,
+    (message) => {
+      showLoading(statusDiv, message);
+    },
+    theme,
+  );
   return {
     url: result.deployUrl,
     content: text,
@@ -188,6 +209,7 @@ async function handleCloudflareDeploy(
  */
 async function handleGistDeploy(
   statusDiv: HTMLDivElement,
+  theme: CssTheme,
 ): Promise<DeployResult> {
   const token = await getStorageData("githubToken");
   if (!token) {
@@ -197,7 +219,7 @@ async function handleGistDeploy(
   const text = await getClipboardText();
   const contentInfo = detectContentType(text);
   showLoading(statusDiv, "Creating Gist...");
-  const url = await deployToGist(token, text);
+  const url = await deployToGist(token, text, theme);
   return { url, content: text, contentType: contentInfo.type };
 }
 
@@ -208,6 +230,7 @@ async function handleDeploy(
   statusDiv: HTMLDivElement,
   deployBtn: HTMLButtonElement,
   provider: DeployProvider,
+  theme: CssTheme,
 ) {
   deployBtn.disabled = true;
   showLoading(statusDiv, `Deploying to ${PROVIDER_NAMES[provider]}...`);
@@ -217,16 +240,16 @@ async function handleDeploy(
 
     switch (provider) {
       case "netlify":
-        result = await handleNetlifyDeploy(statusDiv);
+        result = await handleNetlifyDeploy(statusDiv, theme);
         break;
       case "vercel":
-        result = await handleVercelDeploy(statusDiv);
+        result = await handleVercelDeploy(statusDiv, theme);
         break;
       case "cloudflare":
-        result = await handleCloudflareDeploy(statusDiv);
+        result = await handleCloudflareDeploy(statusDiv, theme);
         break;
       case "gist":
-        result = await handleGistDeploy(statusDiv);
+        result = await handleGistDeploy(statusDiv, theme);
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -260,8 +283,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const { statusDiv, deployBtn, providerHint } = elements;
 
-  // デフォルトプロバイダーを取得
+  // デフォルトプロバイダーとテーマを取得
   const provider = await getDefaultProvider();
+  const theme = await getCssTheme();
 
   // ボタンのスタイルを設定
   setButtonStyle(deployBtn, provider);
@@ -271,6 +295,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // デプロイボタンのクリックイベント
   deployBtn.addEventListener("click", () => {
-    handleDeploy(statusDiv, deployBtn, provider);
+    handleDeploy(statusDiv, deployBtn, provider, theme);
   });
 });
