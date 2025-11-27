@@ -113,113 +113,98 @@ async function getClipboardText(): Promise<string> {
 }
 
 /**
- * Netlify デプロイ処理
+ * プロバイダーごとのデプロイ設定
  */
-async function handleNetlifyDeploy(
-  statusDiv: HTMLDivElement,
-  theme: CssTheme,
-): Promise<DeployResult> {
-  const token = await getStorageData("netlifyToken");
-  if (!token) {
-    throw new Error("Netlify Token not set in Options.");
-  }
-
-  const text = await getClipboardText();
-  const contentInfo = detectContentType(text);
-  const result = await deployToNetlify(
-    token,
-    text,
-    (message) => {
-      showLoading(statusDiv, message);
-    },
-    theme,
-  );
-  return {
-    url: result.deployUrl,
-    content: text,
-    contentType: contentInfo.type,
-  };
+interface DeployConfig {
+  getCredentials: () => Promise<{ token: string; accountId?: string }>;
+  deploy: (
+    token: string,
+    accountId: string | undefined,
+    text: string,
+    onProgress: (message: string) => void,
+    theme: CssTheme,
+  ) => Promise<string>;
 }
 
 /**
- * Vercel デプロイ処理
+ * プロバイダーごとのデプロイ設定マップ
  */
-async function handleVercelDeploy(
-  statusDiv: HTMLDivElement,
-  theme: CssTheme,
-): Promise<DeployResult> {
-  const token = await getStorageData("vercelToken");
-  if (!token) {
-    throw new Error("Vercel Token not set in Options.");
-  }
-
-  const text = await getClipboardText();
-  const contentInfo = detectContentType(text);
-  const result = await deployToVercel(
-    token,
-    text,
-    (message) => {
-      showLoading(statusDiv, message);
+const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
+  netlify: {
+    getCredentials: async () => {
+      const token = await getStorageData("netlifyToken");
+      if (!token) throw new Error("Netlify Token not set in Options.");
+      return { token };
     },
-    theme,
-  );
-  return {
-    url: result.deployUrl,
-    content: text,
-    contentType: contentInfo.type,
-  };
-}
+    deploy: async (token, _accountId, text, onProgress, theme) => {
+      const result = await deployToNetlify(token, text, onProgress, theme);
+      return result.deployUrl;
+    },
+  },
+  vercel: {
+    getCredentials: async () => {
+      const token = await getStorageData("vercelToken");
+      if (!token) throw new Error("Vercel Token not set in Options.");
+      return { token };
+    },
+    deploy: async (token, _accountId, text, onProgress, theme) => {
+      const result = await deployToVercel(token, text, onProgress, theme);
+      return result.deployUrl;
+    },
+  },
+  cloudflare: {
+    getCredentials: async () => {
+      const token = await getStorageData("cloudflareToken");
+      const accountId = await getStorageData("cloudflareAccountId");
+      if (!token) throw new Error("Cloudflare Token not set in Options.");
+      if (!accountId)
+        throw new Error("Cloudflare Account ID not set in Options.");
+      return { token, accountId };
+    },
+    deploy: async (token, accountId, text, onProgress, theme) => {
+      // accountId is guaranteed to be defined by getCredentials
+      const result = await deployToCloudflare(
+        token,
+        accountId as string,
+        text,
+        onProgress,
+        theme,
+      );
+      return result.deployUrl;
+    },
+  },
+  gist: {
+    getCredentials: async () => {
+      const token = await getStorageData("githubToken");
+      if (!token) throw new Error("GitHub Token not set in Options.");
+      return { token };
+    },
+    deploy: async (token, _accountId, text, onProgress, theme) => {
+      onProgress("Creating Gist...");
+      return await deployToGist(token, text, theme);
+    },
+  },
+};
 
 /**
- * Cloudflare Pages デプロイ処理
+ * 汎用デプロイ処理
  */
-async function handleCloudflareDeploy(
+async function handleProviderDeploy(
   statusDiv: HTMLDivElement,
+  provider: DeployProvider,
   theme: CssTheme,
 ): Promise<DeployResult> {
-  const token = await getStorageData("cloudflareToken");
-  const accountId = await getStorageData("cloudflareAccountId");
-  if (!token) {
-    throw new Error("Cloudflare Token not set in Options.");
-  }
-  if (!accountId) {
-    throw new Error("Cloudflare Account ID not set in Options.");
-  }
-
+  const config = DEPLOY_CONFIGS[provider];
+  const { token, accountId } = await config.getCredentials();
   const text = await getClipboardText();
   const contentInfo = detectContentType(text);
-  const result = await deployToCloudflare(
+  const url = await config.deploy(
     token,
     accountId,
     text,
-    (message) => {
-      showLoading(statusDiv, message);
-    },
+    (message) => showLoading(statusDiv, message),
     theme,
   );
-  return {
-    url: result.deployUrl,
-    content: text,
-    contentType: contentInfo.type,
-  };
-}
-
-/**
- * GistHack デプロイ処理
- */
-async function handleGistDeploy(
-  statusDiv: HTMLDivElement,
-  theme: CssTheme,
-): Promise<DeployResult> {
-  const token = await getStorageData("githubToken");
-  if (!token) {
-    throw new Error("GitHub Token not set in Options.");
-  }
-
-  const text = await getClipboardText();
-  const contentInfo = detectContentType(text);
-  showLoading(statusDiv, "Creating Gist...");
-  const url = await deployToGist(token, text, theme);
   return { url, content: text, contentType: contentInfo.type };
 }
 
@@ -236,24 +221,7 @@ async function handleDeploy(
   showLoading(statusDiv, `Deploying to ${PROVIDER_NAMES[provider]}...`);
 
   try {
-    let result: DeployResult;
-
-    switch (provider) {
-      case "netlify":
-        result = await handleNetlifyDeploy(statusDiv, theme);
-        break;
-      case "vercel":
-        result = await handleVercelDeploy(statusDiv, theme);
-        break;
-      case "cloudflare":
-        result = await handleCloudflareDeploy(statusDiv, theme);
-        break;
-      case "gist":
-        result = await handleGistDeploy(statusDiv, theme);
-        break;
-      default:
-        throw new Error(`Unknown provider: ${provider}`);
-    }
+    const result = await handleProviderDeploy(statusDiv, provider, theme);
 
     // 履歴に保存
     const title = extractTitle(result.content, result.contentType);
