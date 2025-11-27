@@ -34,6 +34,18 @@ function checkLastError(): void {
 export type DeployProvider = "netlify" | "vercel" | "cloudflare" | "gist";
 
 /**
+ * CSS テーマの種類
+ */
+export type CssTheme =
+  | "default"
+  | "github"
+  | "github-dark"
+  | "water"
+  | "water-dark"
+  | "pico"
+  | "sakura";
+
+/**
  * ストレージキーの型
  */
 type StorageKeys =
@@ -45,7 +57,8 @@ type StorageKeys =
   | "cloudflareToken"
   | "cloudflareAccountId"
   | "cloudflareProjectId"
-  | "defaultProvider";
+  | "defaultProvider"
+  | "cssTheme";
 
 /**
  * ストレージからデータを取得する
@@ -128,6 +141,21 @@ export async function getDefaultProvider(): Promise<DeployProvider> {
  */
 export function setDefaultProvider(provider: DeployProvider): Promise<void> {
   return setStorageData("defaultProvider", provider);
+}
+
+/**
+ * CSS テーマを取得
+ */
+export async function getCssTheme(): Promise<CssTheme> {
+  const theme = await getStorageData("cssTheme");
+  return (theme as CssTheme) || "default";
+}
+
+/**
+ * CSS テーマを設定
+ */
+export function setCssTheme(theme: CssTheme): Promise<void> {
+  return setStorageData("cssTheme", theme);
 }
 
 /**
