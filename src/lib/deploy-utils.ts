@@ -57,50 +57,57 @@ export interface ProjectManager<T> {
 }
 
 /**
- * プロジェクト/サイトを取得または作成する共通ロジック
+ * プロジェクト/サイトから ID を抽出
  */
-export async function getOrCreateProject<T>(
-  manager: ProjectManager<T>,
-): Promise<ResultAsync<T, DeployError>> {
-  // 1. storage から取得
-  const storedId = await manager.getFromStorage();
-  if (storedId) {
-    const result = await manager.getById(storedId);
-    if (result.isOk()) {
-      return ResultAsync.fromSafePromise(Promise.resolve(result.value));
-    }
-    // プロジェクト/サイトが削除されている可能性があるので続行
-  }
-
-  // 2. 既存のプロジェクト/サイトを検索
-  const existingResult = await manager.findExisting();
-  if (existingResult.isOk() && existingResult.value) {
-    // ID を保存（サービスによって id か name を使用）
-    const project = existingResult.value;
-    const id =
-      (project as { id?: string }).id || (project as { name?: string }).name;
-    if (id) {
-      await manager.saveToStorage(id);
-    }
-    return ResultAsync.fromSafePromise(Promise.resolve(project));
-  }
-
-  // 3. 新規作成
-  return manager.create().map(async (project) => {
-    const id =
-      (project as { id?: string }).id || (project as { name?: string }).name;
-    if (id) {
-      await manager.saveToStorage(id);
-    }
-    return project;
-  });
+function extractProjectId<T>(project: T): string | undefined {
+  return (project as { id?: string }).id || (project as { name?: string }).name;
 }
 
 /**
- * ResultAsync のエラーを返す共通ヘルパー
+ * プロジェクト/サイトを取得または作成する共通ロジック
  */
-export function rejectWithError<T>(
-  error: DeployError,
+export function getOrCreateProject<T>(
+  manager: ProjectManager<T>,
 ): ResultAsync<T, DeployError> {
-  return ResultAsync.fromPromise(Promise.reject(error), () => error);
+  return ResultAsync.fromSafePromise(manager.getFromStorage()).andThen(
+    (storedId) => {
+      if (storedId) {
+        // 1. storage から取得を試みる
+        return manager
+          .getById(storedId)
+          .orElse(() => findOrCreateProject(manager));
+      }
+      return findOrCreateProject(manager);
+    },
+  );
+}
+
+/**
+ * 既存プロジェクトを検索、なければ新規作成
+ */
+function findOrCreateProject<T>(
+  manager: ProjectManager<T>,
+): ResultAsync<T, DeployError> {
+  return manager.findExisting().andThen((existing) => {
+    if (existing) {
+      // 既存プロジェクトが見つかった
+      const id = extractProjectId(existing);
+      if (id) {
+        return ResultAsync.fromSafePromise(
+          manager.saveToStorage(id).then(() => existing),
+        );
+      }
+      return ResultAsync.fromSafePromise(Promise.resolve(existing));
+    }
+    // 新規作成
+    return manager.create().andThen((project) => {
+      const id = extractProjectId(project);
+      if (id) {
+        return ResultAsync.fromSafePromise(
+          manager.saveToStorage(id).then(() => project),
+        );
+      }
+      return ResultAsync.fromSafePromise(Promise.resolve(project));
+    });
+  });
 }
