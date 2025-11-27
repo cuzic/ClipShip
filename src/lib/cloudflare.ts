@@ -17,7 +17,6 @@ import {
   type ProjectManager,
   createUnknownErrorMapper,
   getOrCreateProject,
-  rejectWithError,
 } from "./deploy-utils";
 import type { DeployError } from "./errors";
 import { sha256 } from "./hash";
@@ -153,7 +152,7 @@ function createCloudflareProjectManager(
 function getOrCreateClipShipProject(
   token: string,
   accountId: string,
-): Promise<ResultAsync<CloudflarePagesProject, DeployError>> {
+): ResultAsync<CloudflarePagesProject, DeployError> {
   return getOrCreateProject(createCloudflareProjectManager(token, accountId));
 }
 
@@ -216,60 +215,40 @@ interface CloudflareDeployResult {
 /**
  * Cloudflare Pages にデプロイする (Result版)
  */
-export async function deployToCloudflareResult(
+export function deployToCloudflareResult(
   token: string,
   accountId: string,
   content: string,
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
-): Promise<ResultAsync<CloudflareDeployResult, DeployError>> {
-  onProgress?.("Preparing project...");
-
-  // プロジェクトを取得または作成
-  const projectResultAsync = await getOrCreateClipShipProject(token, accountId);
-  const projectResult = await projectResultAsync;
-
-  if (projectResult.isErr()) {
-    return rejectWithError(projectResult.error);
-  }
-
-  const project = projectResult.value;
-
+): ResultAsync<CloudflareDeployResult, DeployError> {
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
   const processed = processContent(content, theme);
   const filePath = `${subdir}/${processed.filename}`;
 
-  // ファイルハッシュを計算
-  const fileHash = await sha256(processed.content);
+  onProgress?.("Preparing project...");
 
-  onProgress?.("Creating deployment...");
+  return getOrCreateClipShipProject(token, accountId).andThen((project) =>
+    // ファイルハッシュを計算
+    ResultAsync.fromSafePromise(sha256(processed.content)).andThen(
+      (fileHash) => {
+        onProgress?.("Creating deployment...");
 
-  // デプロイを作成
-  const deployResult = await createDeployment(
-    token,
-    accountId,
-    project.name,
-    filePath,
-    processed.content,
-    fileHash,
-  );
-
-  if (deployResult.isErr()) {
-    return rejectWithError(deployResult.error);
-  }
-
-  const deployment = deployResult.value;
-
-  // 最終 URL を構築
-  const deployUrl = `${deployment.url}/${filePath}`;
-
-  return ResultAsync.fromSafePromise(
-    Promise.resolve({
-      projectId: project.id,
-      projectName: project.name,
-      deployUrl,
-    }),
+        return createDeployment(
+          token,
+          accountId,
+          project.name,
+          filePath,
+          processed.content,
+          fileHash,
+        ).map((deployment) => ({
+          projectId: project.id,
+          projectName: project.name,
+          deployUrl: `${deployment.url}/${filePath}`,
+        }));
+      },
+    ),
   );
 }
 
@@ -284,14 +263,13 @@ export async function deployToCloudflare(
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
 ): Promise<CloudflareDeployResult> {
-  const resultAsync = await deployToCloudflareResult(
+  const result = await deployToCloudflareResult(
     token,
     accountId,
     content,
     onProgress,
     theme,
   );
-  const result = await resultAsync;
 
   if (result.isErr()) {
     throw result.error;
