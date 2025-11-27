@@ -3,8 +3,10 @@
  * デフォルトプロバイダーへの1クリックデプロイ
  */
 
+import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { deployToCloudflare } from "./lib/cloudflare";
 import { type ContentType, detectContentType } from "./lib/detect";
+import type { DeployError } from "./lib/errors";
 import { deployToGist } from "./lib/gist";
 import { deployToNetlify } from "./lib/netlify";
 import {
@@ -102,28 +104,60 @@ interface DeployResult {
 }
 
 /**
+ * クリップボードエラー
+ */
+class ClipboardError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClipboardError";
+  }
+}
+
+/**
+ * 認証エラー
+ */
+class CredentialError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CredentialError";
+  }
+}
+
+type PopupError = DeployError | ClipboardError | CredentialError;
+
+/**
  * クリップボードからテキストを取得
  */
-async function getClipboardText(): Promise<string> {
-  const text = await navigator.clipboard.readText();
-  if (!text) {
-    throw new Error("Clipboard is empty.");
-  }
-  return text;
+function getClipboardText(): ResultAsync<string, ClipboardError> {
+  return okAsync(undefined)
+    .andThen(() =>
+      ResultAsync.fromPromise(
+        navigator.clipboard.readText(),
+        () => new ClipboardError("Failed to read clipboard"),
+      ),
+    )
+    .andThen((text) =>
+      text
+        ? okAsync(text)
+        : errAsync(new ClipboardError("Clipboard is empty.")),
+    );
 }
 
 /**
  * プロバイダーごとのデプロイ設定
  */
 interface DeployConfig {
-  getCredentials: () => Promise<{ token: string; accountId?: string }>;
+  getCredentials: () => ResultAsync<
+    { token: string; accountId?: string },
+    CredentialError
+  >;
   deploy: (
     token: string,
     accountId: string | undefined,
     text: string,
     onProgress: (message: string) => void,
     theme: CssTheme,
-  ) => Promise<string>;
+  ) => ResultAsync<string, DeployError>;
 }
 
 /**
@@ -131,57 +165,67 @@ interface DeployConfig {
  */
 const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
   netlify: {
-    getCredentials: async () => {
-      const token = await getStorageData("netlifyToken");
-      if (!token) throw new Error("Netlify Token not set in Options.");
-      return { token };
-    },
-    deploy: async (token, _accountId, text, onProgress, theme) => {
-      const result = await deployToNetlify(token, text, onProgress, theme);
-      return result.deployUrl;
-    },
+    getCredentials: () =>
+      ResultAsync.fromSafePromise(getStorageData("netlifyToken")).andThen(
+        (token) =>
+          token
+            ? okAsync({ token })
+            : errAsync(
+                new CredentialError("Netlify Token not set in Options."),
+              ),
+      ),
+    deploy: (token, _accountId, text, onProgress, theme) =>
+      deployToNetlify(token, text, onProgress, theme).map((r) => r.deployUrl),
   },
   vercel: {
-    getCredentials: async () => {
-      const token = await getStorageData("vercelToken");
-      if (!token) throw new Error("Vercel Token not set in Options.");
-      return { token };
-    },
-    deploy: async (token, _accountId, text, onProgress, theme) => {
-      const result = await deployToVercel(token, text, onProgress, theme);
-      return result.deployUrl;
-    },
+    getCredentials: () =>
+      ResultAsync.fromSafePromise(getStorageData("vercelToken")).andThen(
+        (token) =>
+          token
+            ? okAsync({ token })
+            : errAsync(new CredentialError("Vercel Token not set in Options.")),
+      ),
+    deploy: (token, _accountId, text, onProgress, theme) =>
+      deployToVercel(token, text, onProgress, theme).map((r) => r.deployUrl),
   },
   cloudflare: {
-    getCredentials: async () => {
-      const token = await getStorageData("cloudflareToken");
-      const accountId = await getStorageData("cloudflareAccountId");
-      if (!token) throw new Error("Cloudflare Token not set in Options.");
-      if (!accountId)
-        throw new Error("Cloudflare Account ID not set in Options.");
-      return { token, accountId };
-    },
-    deploy: async (token, accountId, text, onProgress, theme) => {
-      // accountId is guaranteed to be defined by getCredentials
-      const result = await deployToCloudflare(
+    getCredentials: () =>
+      ResultAsync.fromSafePromise(
+        Promise.all([
+          getStorageData("cloudflareToken"),
+          getStorageData("cloudflareAccountId"),
+        ]),
+      ).andThen(([token, accountId]) => {
+        if (!token)
+          return errAsync(
+            new CredentialError("Cloudflare Token not set in Options."),
+          );
+        if (!accountId)
+          return errAsync(
+            new CredentialError("Cloudflare Account ID not set in Options."),
+          );
+        return okAsync({ token, accountId });
+      }),
+    deploy: (token, accountId, text, onProgress, theme) =>
+      deployToCloudflare(
         token,
         accountId as string,
         text,
         onProgress,
         theme,
-      );
-      return result.deployUrl;
-    },
+      ).map((r) => r.deployUrl),
   },
   gist: {
-    getCredentials: async () => {
-      const token = await getStorageData("githubToken");
-      if (!token) throw new Error("GitHub Token not set in Options.");
-      return { token };
-    },
-    deploy: async (token, _accountId, text, onProgress, theme) => {
+    getCredentials: () =>
+      ResultAsync.fromSafePromise(getStorageData("githubToken")).andThen(
+        (token) =>
+          token
+            ? okAsync({ token })
+            : errAsync(new CredentialError("GitHub Token not set in Options.")),
+      ),
+    deploy: (token, _accountId, text, onProgress, theme) => {
       onProgress("Creating Gist...");
-      return await deployToGist(token, text, theme);
+      return deployToGist(token, text, theme).map((r) => r.deployUrl);
     },
   },
 };
@@ -189,23 +233,27 @@ const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
 /**
  * 汎用デプロイ処理
  */
-async function handleProviderDeploy(
+function handleProviderDeploy(
   statusDiv: HTMLDivElement,
   provider: DeployProvider,
   theme: CssTheme,
-): Promise<DeployResult> {
+): ResultAsync<DeployResult, PopupError> {
   const config = DEPLOY_CONFIGS[provider];
-  const { token, accountId } = await config.getCredentials();
-  const text = await getClipboardText();
-  const contentInfo = detectContentType(text);
-  const url = await config.deploy(
-    token,
-    accountId,
-    text,
-    (message) => showLoading(statusDiv, message),
-    theme,
+
+  return config.getCredentials().andThen(({ token, accountId }) =>
+    getClipboardText().andThen((text) => {
+      const contentInfo = detectContentType(text);
+      return config
+        .deploy(
+          token,
+          accountId,
+          text,
+          (message) => showLoading(statusDiv, message),
+          theme,
+        )
+        .map((url) => ({ url, content: text, contentType: contentInfo.type }));
+    }),
   );
-  return { url, content: text, contentType: contentInfo.type };
 }
 
 /**
@@ -220,24 +268,30 @@ async function handleDeploy(
   deployBtn.disabled = true;
   showLoading(statusDiv, `Deploying to ${PROVIDER_NAMES[provider]}...`);
 
-  try {
-    const result = await handleProviderDeploy(statusDiv, provider, theme);
+  const result = await handleProviderDeploy(statusDiv, provider, theme);
 
-    // 履歴に保存
-    const title = extractTitle(result.content, result.contentType);
-    await addDeployHistory({
-      title,
-      url: result.url,
-      provider,
-      contentType: result.contentType,
-    });
+  await result.match(
+    async (deployResult) => {
+      // 履歴に保存
+      const title = extractTitle(
+        deployResult.content,
+        deployResult.contentType,
+      );
+      await addDeployHistory({
+        title,
+        url: deployResult.url,
+        provider,
+        contentType: deployResult.contentType,
+      });
 
-    await showSuccess(statusDiv, result.url);
-  } catch (error) {
-    showError(statusDiv, (error as Error).message);
-  } finally {
-    deployBtn.disabled = false;
-  }
+      await showSuccess(statusDiv, deployResult.url);
+    },
+    async (error) => {
+      showError(statusDiv, error.message);
+    },
+  );
+
+  deployBtn.disabled = false;
 }
 
 /**
