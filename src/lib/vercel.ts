@@ -17,7 +17,6 @@ import {
   type ProjectManager,
   createUnknownErrorMapper,
   getOrCreateProject,
-  rejectWithError,
 } from "./deploy-utils";
 import type { DeployError } from "./errors";
 import { processContent } from "./html";
@@ -126,7 +125,7 @@ function createVercelProjectManager(
  */
 function getOrCreateClipShipProject(
   token: string,
-): Promise<ResultAsync<VercelProject, DeployError>> {
+): ResultAsync<VercelProject, DeployError> {
   return getOrCreateProject(createVercelProjectManager(token));
 }
 
@@ -178,55 +177,33 @@ interface VercelDeployResult {
 /**
  * Vercel にデプロイする (Result版)
  */
-export async function deployToVercelResult(
+export function deployToVercelResult(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
-): Promise<ResultAsync<VercelDeployResult, DeployError>> {
-  onProgress?.("Preparing project...");
-
-  // プロジェクトを取得または作成
-  const projectResultAsync = await getOrCreateClipShipProject(token);
-  const projectResult = await projectResultAsync;
-
-  if (projectResult.isErr()) {
-    return rejectWithError(projectResult.error);
-  }
-
-  const project = projectResult.value;
-
+): ResultAsync<VercelDeployResult, DeployError> {
   // ランダムなサブディレクトリ名を生成
   const subdir = nanoid();
   const processed = processContent(content, theme);
   const filePath = `${subdir}/${processed.filename}`;
 
-  onProgress?.("Creating deployment...");
+  onProgress?.("Preparing project...");
 
-  // デプロイを作成
-  const deployResult = await createDeployment(
-    token,
-    project.name,
-    filePath,
-    processed.content,
-  );
+  return getOrCreateClipShipProject(token).andThen((project) => {
+    onProgress?.("Creating deployment...");
 
-  if (deployResult.isErr()) {
-    return rejectWithError(deployResult.error);
-  }
-
-  const deployment = deployResult.value;
-
-  // 最終 URL を構築
-  const deployUrl = `https://${deployment.url}/${filePath}`;
-
-  return ResultAsync.fromSafePromise(
-    Promise.resolve({
+    return createDeployment(
+      token,
+      project.name,
+      filePath,
+      processed.content,
+    ).map((deployment) => ({
       projectId: project.id,
       projectName: project.name,
-      deployUrl,
-    }),
-  );
+      deployUrl: `https://${deployment.url}/${filePath}`,
+    }));
+  });
 }
 
 /**
@@ -239,13 +216,7 @@ export async function deployToVercel(
   onProgress?: (message: string) => void,
   theme: CssTheme = "default",
 ): Promise<VercelDeployResult> {
-  const resultAsync = await deployToVercelResult(
-    token,
-    content,
-    onProgress,
-    theme,
-  );
-  const result = await resultAsync;
+  const result = await deployToVercelResult(token, content, onProgress, theme);
 
   if (result.isErr()) {
     throw result.error;
