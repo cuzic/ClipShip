@@ -213,9 +213,9 @@ interface CloudflareDeployResult {
 }
 
 /**
- * Cloudflare Pages にデプロイする (Result版)
+ * Cloudflare Pages にデプロイする
  */
-export function deployToCloudflareResult(
+export function deployToCloudflare(
   token: string,
   accountId: string,
   content: string,
@@ -250,30 +250,4 @@ export function deployToCloudflareResult(
       },
     ),
   );
-}
-
-/**
- * Cloudflare Pages にデプロイする (後方互換性のため維持)
- * @deprecated deployToCloudflareResult を使用してください
- */
-export async function deployToCloudflare(
-  token: string,
-  accountId: string,
-  content: string,
-  onProgress?: (message: string) => void,
-  theme: CssTheme = "default",
-): Promise<CloudflareDeployResult> {
-  const result = await deployToCloudflareResult(
-    token,
-    accountId,
-    content,
-    onProgress,
-    theme,
-  );
-
-  if (result.isErr()) {
-    throw result.error;
-  }
-
-  return result.value;
 }

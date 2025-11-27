@@ -279,9 +279,9 @@ function uploadRequiredFiles(
 }
 
 /**
- * Netlifyにデプロイする (Result版)
+ * Netlifyにデプロイする
  */
-export function deployToNetlifyResult(
+export function deployToNetlify(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
@@ -333,23 +333,4 @@ export function deployToNetlifyResult(
         });
     }),
   );
-}
-
-/**
- * Netlifyにデプロイする (後方互換性のため維持)
- * @deprecated deployToNetlifyResult を使用してください
- */
-export async function deployToNetlify(
-  token: string,
-  content: string,
-  onProgress?: (message: string) => void,
-  theme: CssTheme = "default",
-): Promise<NetlifyDeployResult> {
-  const result = await deployToNetlifyResult(token, content, onProgress, theme);
-
-  if (result.isErr()) {
-    throw result.error;
-  }
-
-  return result.value;
 }

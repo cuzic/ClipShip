@@ -175,9 +175,9 @@ interface VercelDeployResult {
 }
 
 /**
- * Vercel にデプロイする (Result版)
+ * Vercel にデプロイする
  */
-export function deployToVercelResult(
+export function deployToVercel(
   token: string,
   content: string,
   onProgress?: (message: string) => void,
@@ -204,23 +204,4 @@ export function deployToVercelResult(
       deployUrl: `https://${deployment.url}/${filePath}`,
     }));
   });
-}
-
-/**
- * Vercel にデプロイする (後方互換性のため維持)
- * @deprecated deployToVercelResult を使用してください
- */
-export async function deployToVercel(
-  token: string,
-  content: string,
-  onProgress?: (message: string) => void,
-  theme: CssTheme = "default",
-): Promise<VercelDeployResult> {
-  const result = await deployToVercelResult(token, content, onProgress, theme);
-
-  if (result.isErr()) {
-    throw result.error;
-  }
-
-  return result.value;
 }
