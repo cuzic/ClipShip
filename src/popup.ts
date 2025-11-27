@@ -27,14 +27,31 @@ const PROVIDER_NAMES: Record<DeployProvider, string> = {
 };
 
 /**
- * DOM要素の取得
+ * DOM要素の取得結果
  */
-function getElements() {
-  const statusDiv = document.getElementById("status") as HTMLDivElement;
-  const deployBtn = document.getElementById("btn-deploy") as HTMLButtonElement;
-  const providerHint = document.getElementById(
-    "provider-hint",
-  ) as HTMLDivElement;
+interface PopupElements {
+  statusDiv: HTMLDivElement;
+  deployBtn: HTMLButtonElement;
+  providerHint: HTMLDivElement;
+}
+
+/**
+ * DOM要素の取得（型安全）
+ */
+function getElements(): PopupElements | null {
+  const statusDiv = document.getElementById("status");
+  const deployBtn = document.getElementById("btn-deploy");
+  const providerHint = document.getElementById("provider-hint");
+
+  if (
+    !(statusDiv instanceof HTMLDivElement) ||
+    !(deployBtn instanceof HTMLButtonElement) ||
+    !(providerHint instanceof HTMLDivElement)
+  ) {
+    console.error("Required DOM elements not found");
+    return null;
+  }
+
   return { statusDiv, deployBtn, providerHint };
 }
 
@@ -236,7 +253,12 @@ async function handleDeploy(
  * 初期化
  */
 document.addEventListener("DOMContentLoaded", async () => {
-  const { statusDiv, deployBtn, providerHint } = getElements();
+  const elements = getElements();
+  if (!elements) {
+    return;
+  }
+
+  const { statusDiv, deployBtn, providerHint } = elements;
 
   // デフォルトプロバイダーを取得
   const provider = await getDefaultProvider();

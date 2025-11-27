@@ -16,6 +16,11 @@ export abstract class AppError extends Error {
 }
 
 /**
+ * サポートするサービス名
+ */
+export type ServiceName = "Netlify" | "Vercel" | "Cloudflare" | "GitHub";
+
+/**
  * 認証エラー
  * - API トークンが未設定
  * - API トークンが無効
@@ -23,11 +28,11 @@ export abstract class AppError extends Error {
 export class AuthenticationError extends AppError {
   readonly code = "AUTHENTICATION_ERROR";
 
-  static tokenNotSet(service: "Netlify" | "GitHub"): AuthenticationError {
+  static tokenNotSet(service: ServiceName): AuthenticationError {
     return new AuthenticationError(`${service} Token not set in Options.`);
   }
 
-  static invalidToken(service: "Netlify" | "GitHub"): AuthenticationError {
+  static invalidToken(service: ServiceName): AuthenticationError {
     return new AuthenticationError(
       `Authentication failed. Check your ${service} token.`,
     );

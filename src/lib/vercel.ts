@@ -9,39 +9,25 @@ import {
   type VercelProject,
   VercelProjectSchema,
 } from "@/schemas/vercel";
-import ky, { HTTPError } from "ky";
+import ky from "ky";
 import { nanoid } from "nanoid";
 import { ResultAsync } from "neverthrow";
 import { z } from "zod";
-import { ApiError, AuthenticationError, type DeployError } from "./errors";
+import {
+  type ProjectManager,
+  createUnknownErrorMapper,
+  getOrCreateProject,
+  rejectWithError,
+} from "./deploy-utils";
+import type { DeployError } from "./errors";
 import { processContent } from "./html";
 import { getStorageData, setStorageData } from "./storage";
 
 const VERCEL_API_URL = "https://api.vercel.com";
 const CLIPSHIP_PROJECT_PREFIX = "clipship-";
 
-/**
- * HTTPError を DeployError に変換
- */
-function mapHttpError(error: HTTPError): DeployError {
-  if (error.response.status === 401 || error.response.status === 403) {
-    return AuthenticationError.invalidToken("Vercel" as "Netlify" | "GitHub");
-  }
-  return ApiError.fromStatus(error.response.status);
-}
-
-/**
- * unknown エラーを DeployError に変換
- */
-function mapUnknownError(error: unknown): DeployError {
-  if (error instanceof HTTPError) {
-    return mapHttpError(error);
-  }
-  if (error instanceof Error) {
-    return new ApiError(error.message);
-  }
-  return new ApiError("Unknown error occurred");
-}
+// 共通エラーマッパー
+const mapUnknownError = createUnknownErrorMapper("Vercel");
 
 /**
  * プロジェクト一覧を取得
@@ -121,35 +107,27 @@ function createClipShipProject(
 }
 
 /**
+ * Vercel プロジェクト管理用の ProjectManager を作成
+ */
+function createVercelProjectManager(
+  token: string,
+): ProjectManager<VercelProject> {
+  return {
+    getFromStorage: () => getStorageData("vercelProjectId"),
+    saveToStorage: (id: string) => setStorageData("vercelProjectId", id),
+    getById: (id: string) => getProject(token, id),
+    findExisting: () => findClipShipProject(token),
+    create: () => createClipShipProject(token),
+  };
+}
+
+/**
  * ClipShip プロジェクトを取得または作成
  */
-async function getOrCreateClipShipProject(
+function getOrCreateClipShipProject(
   token: string,
 ): Promise<ResultAsync<VercelProject, DeployError>> {
-  // 1. storage から取得
-  const storedProjectId = await getStorageData("vercelProjectId");
-  if (storedProjectId) {
-    const projectResult = await getProject(token, storedProjectId);
-    if (projectResult.isOk()) {
-      return ResultAsync.fromSafePromise(Promise.resolve(projectResult.value));
-    }
-    // プロジェクトが削除されている可能性があるので続行
-  }
-
-  // 2. 既存の clipship-* プロジェクトを検索
-  const existingProjectResult = await findClipShipProject(token);
-  if (existingProjectResult.isOk() && existingProjectResult.value) {
-    await setStorageData("vercelProjectId", existingProjectResult.value.id);
-    return ResultAsync.fromSafePromise(
-      Promise.resolve(existingProjectResult.value),
-    );
-  }
-
-  // 3. 新規作成
-  return createClipShipProject(token).map(async (project) => {
-    await setStorageData("vercelProjectId", project.id);
-    return project;
-  });
+  return getOrCreateProject(createVercelProjectManager(token));
 }
 
 /**
@@ -205,19 +183,14 @@ export async function deployToVercelResult(
   content: string,
   onProgress?: (message: string) => void,
 ): Promise<ResultAsync<VercelDeployResult, DeployError>> {
-  if (onProgress) {
-    onProgress("Preparing project...");
-  }
+  onProgress?.("Preparing project...");
 
   // プロジェクトを取得または作成
   const projectResultAsync = await getOrCreateClipShipProject(token);
   const projectResult = await projectResultAsync;
 
   if (projectResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(projectResult.error),
-      () => projectResult.error,
-    );
+    return rejectWithError(projectResult.error);
   }
 
   const project = projectResult.value;
@@ -227,9 +200,7 @@ export async function deployToVercelResult(
   const processed = processContent(content);
   const filePath = `${subdir}/${processed.filename}`;
 
-  if (onProgress) {
-    onProgress("Creating deployment...");
-  }
+  onProgress?.("Creating deployment...");
 
   // デプロイを作成
   const deployResult = await createDeployment(
@@ -240,10 +211,7 @@ export async function deployToVercelResult(
   );
 
   if (deployResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(deployResult.error),
-      () => deployResult.error,
-    );
+    return rejectWithError(deployResult.error);
   }
 
   const deployment = deployResult.value;

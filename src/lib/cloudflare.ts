@@ -10,21 +10,24 @@ import {
   CloudflarePagesProjectListResponseSchema,
   CloudflarePagesProjectResponseSchema,
 } from "@/schemas/cloudflare";
-import ky, { HTTPError } from "ky";
+import ky from "ky";
 import { nanoid } from "nanoid";
 import { ResultAsync } from "neverthrow";
-import { z } from "zod";
 import {
-  ApiError,
-  AuthenticationError,
-  type DeployError,
-  PermissionError,
-} from "./errors";
+  type ProjectManager,
+  createUnknownErrorMapper,
+  getOrCreateProject,
+  rejectWithError,
+} from "./deploy-utils";
+import type { DeployError } from "./errors";
 import { processContent } from "./html";
 import { getStorageData, setStorageData } from "./storage";
 
 const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
 const CLIPSHIP_PROJECT_PREFIX = "clipship-";
+
+// 共通エラーマッパー
+const mapUnknownError = createUnknownErrorMapper("Cloudflare");
 
 /**
  * SHA-256 ハッシュを計算
@@ -35,32 +38,6 @@ async function sha256(content: string): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/**
- * HTTPError を DeployError に変換
- */
-function mapHttpError(error: HTTPError): DeployError {
-  if (error.response.status === 401) {
-    return AuthenticationError.invalidToken("GitHub"); // 近い型を使用
-  }
-  if (error.response.status === 403) {
-    return PermissionError.insufficientScope("Pages: Edit");
-  }
-  return ApiError.fromStatus(error.response.status);
-}
-
-/**
- * unknown エラーを DeployError に変換
- */
-function mapUnknownError(error: unknown): DeployError {
-  if (error instanceof HTTPError) {
-    return mapHttpError(error);
-  }
-  if (error instanceof Error) {
-    return new ApiError(error.message);
-  }
-  return new ApiError("Unknown error occurred");
 }
 
 /**
@@ -164,39 +141,30 @@ function createClipShipProject(
 }
 
 /**
+ * Cloudflare プロジェクト管理用の ProjectManager を作成
+ */
+function createCloudflareProjectManager(
+  token: string,
+  accountId: string,
+): ProjectManager<CloudflarePagesProject> {
+  return {
+    getFromStorage: () => getStorageData("cloudflareProjectId"),
+    saveToStorage: (name: string) =>
+      setStorageData("cloudflareProjectId", name),
+    getById: (name: string) => getProject(token, accountId, name),
+    findExisting: () => findClipShipProject(token, accountId),
+    create: () => createClipShipProject(token, accountId),
+  };
+}
+
+/**
  * ClipShip プロジェクトを取得または作成
  */
-async function getOrCreateClipShipProject(
+function getOrCreateClipShipProject(
   token: string,
   accountId: string,
 ): Promise<ResultAsync<CloudflarePagesProject, DeployError>> {
-  // 1. storage から取得
-  const storedProjectId = await getStorageData("cloudflareProjectId");
-  if (storedProjectId) {
-    const projectResult = await getProject(token, accountId, storedProjectId);
-    if (projectResult.isOk()) {
-      return ResultAsync.fromSafePromise(Promise.resolve(projectResult.value));
-    }
-    // プロジェクトが削除されている可能性があるので続行
-  }
-
-  // 2. 既存の clipship-* プロジェクトを検索
-  const existingProjectResult = await findClipShipProject(token, accountId);
-  if (existingProjectResult.isOk() && existingProjectResult.value) {
-    await setStorageData(
-      "cloudflareProjectId",
-      existingProjectResult.value.name,
-    );
-    return ResultAsync.fromSafePromise(
-      Promise.resolve(existingProjectResult.value),
-    );
-  }
-
-  // 3. 新規作成
-  return createClipShipProject(token, accountId).map(async (project) => {
-    await setStorageData("cloudflareProjectId", project.name);
-    return project;
-  });
+  return getOrCreateProject(createCloudflareProjectManager(token, accountId));
 }
 
 /**
@@ -264,19 +232,14 @@ export async function deployToCloudflareResult(
   content: string,
   onProgress?: (message: string) => void,
 ): Promise<ResultAsync<CloudflareDeployResult, DeployError>> {
-  if (onProgress) {
-    onProgress("Preparing project...");
-  }
+  onProgress?.("Preparing project...");
 
   // プロジェクトを取得または作成
   const projectResultAsync = await getOrCreateClipShipProject(token, accountId);
   const projectResult = await projectResultAsync;
 
   if (projectResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(projectResult.error),
-      () => projectResult.error,
-    );
+    return rejectWithError(projectResult.error);
   }
 
   const project = projectResult.value;
@@ -289,9 +252,7 @@ export async function deployToCloudflareResult(
   // ファイルハッシュを計算
   const fileHash = await sha256(processed.content);
 
-  if (onProgress) {
-    onProgress("Creating deployment...");
-  }
+  onProgress?.("Creating deployment...");
 
   // デプロイを作成
   const deployResult = await createDeployment(
@@ -304,10 +265,7 @@ export async function deployToCloudflareResult(
   );
 
   if (deployResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(deployResult.error),
-      () => deployResult.error,
-    );
+    return rejectWithError(deployResult.error);
   }
 
   const deployment = deployResult.value;

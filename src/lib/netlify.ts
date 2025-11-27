@@ -4,11 +4,17 @@
  */
 
 import { type NetlifySite, NetlifySiteSchema } from "@/schemas/netlify";
-import ky, { HTTPError } from "ky";
+import ky from "ky";
 import { nanoid } from "nanoid";
-import { ResultAsync, err, ok } from "neverthrow";
+import { ResultAsync } from "neverthrow";
 import { z } from "zod";
-import { ApiError, AuthenticationError, type DeployError } from "./errors";
+import {
+  type ProjectManager,
+  createUnknownErrorMapper,
+  getOrCreateProject,
+  rejectWithError,
+} from "./deploy-utils";
+import { ApiError, type DeployError } from "./errors";
 import { processContent } from "./html";
 import { getStorageData, setStorageData } from "./storage";
 
@@ -17,6 +23,9 @@ const NETLIFY_DEPLOYS_API_URL = "https://api.netlify.com/api/v1/deploys";
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 60;
 const CLIPSHIP_SITE_PREFIX = "clipship-";
+
+// 共通エラーマッパー
+const mapUnknownError = createUnknownErrorMapper("Netlify");
 
 /**
  * 文字列の SHA1 ハッシュを計算
@@ -65,29 +74,6 @@ interface NetlifyDeployResult {
   siteId: string;
   siteName: string;
   deployUrl: string;
-}
-
-/**
- * HTTPError を DeployError に変換
- */
-function mapHttpError(error: HTTPError): DeployError {
-  if (error.response.status === 401) {
-    return AuthenticationError.invalidToken("Netlify");
-  }
-  return ApiError.fromStatus(error.response.status);
-}
-
-/**
- * unknown エラーを DeployError に変換
- */
-function mapUnknownError(error: unknown): DeployError {
-  if (error instanceof HTTPError) {
-    return mapHttpError(error);
-  }
-  if (error instanceof Error) {
-    return new ApiError(error.message);
-  }
-  return new ApiError("Unknown error occurred");
 }
 
 /**
@@ -162,35 +148,25 @@ function createClipShipSite(
 }
 
 /**
+ * Netlify サイト管理用の ProjectManager を作成
+ */
+function createNetlifySiteManager(token: string): ProjectManager<NetlifySite> {
+  return {
+    getFromStorage: () => getStorageData("netlifySiteId"),
+    saveToStorage: (id: string) => setStorageData("netlifySiteId", id),
+    getById: (id: string) => getSite(token, id),
+    findExisting: () => findClipShipSite(token),
+    create: () => createClipShipSite(token),
+  };
+}
+
+/**
  * ClipShip サイトを取得または作成
  */
-async function getOrCreateClipShipSite(
+function getOrCreateClipShipSite(
   token: string,
 ): Promise<ResultAsync<NetlifySite, DeployError>> {
-  // 1. storage から取得
-  const storedSiteId = await getStorageData("netlifySiteId");
-  if (storedSiteId) {
-    const siteResult = await getSite(token, storedSiteId);
-    if (siteResult.isOk()) {
-      return ResultAsync.fromSafePromise(Promise.resolve(siteResult.value));
-    }
-    // サイトが削除されている可能性があるので続行
-  }
-
-  // 2. 既存の clipship-* サイトを検索
-  const existingSiteResult = await findClipShipSite(token);
-  if (existingSiteResult.isOk() && existingSiteResult.value) {
-    await setStorageData("netlifySiteId", existingSiteResult.value.id);
-    return ResultAsync.fromSafePromise(
-      Promise.resolve(existingSiteResult.value),
-    );
-  }
-
-  // 3. 新規作成
-  return createClipShipSite(token).map(async (site) => {
-    await setStorageData("netlifySiteId", site.id);
-    return site;
-  });
+  return getOrCreateProject(createNetlifySiteManager(token));
 }
 
 /**
@@ -318,19 +294,14 @@ export async function deployToNetlifyResult(
   content: string,
   onProgress?: (message: string) => void,
 ): Promise<ResultAsync<NetlifyDeployResult, DeployError>> {
-  if (onProgress) {
-    onProgress("Preparing site...");
-  }
+  onProgress?.("Preparing site...");
 
   // サイトを取得または作成
   const siteResultAsync = await getOrCreateClipShipSite(token);
   const siteResult = await siteResultAsync;
 
   if (siteResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(siteResult.error),
-      () => siteResult.error,
-    );
+    return rejectWithError(siteResult.error);
   }
 
   const site = siteResult.value;
@@ -351,27 +322,20 @@ export async function deployToNetlifyResult(
     },
   ];
 
-  if (onProgress) {
-    onProgress("Creating deploy...");
-  }
+  onProgress?.("Creating deploy...");
 
   // File Digest API でデプロイを作成
   const deployResult = await createDigestDeploy(token, site.id, files);
 
   if (deployResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(deployResult.error),
-      () => deployResult.error,
-    );
+    return rejectWithError(deployResult.error);
   }
 
   const deploy = deployResult.value;
 
   // 必要なファイルをアップロード
   if (deploy.required && deploy.required.length > 0) {
-    if (onProgress) {
-      onProgress("Uploading files...");
-    }
+    onProgress?.("Uploading files...");
     const uploadResult = await uploadRequiredFiles(
       token,
       deploy.id,
@@ -379,35 +343,21 @@ export async function deployToNetlifyResult(
       deploy.required,
     );
     if (uploadResult.isErr()) {
-      return ResultAsync.fromPromise(
-        Promise.reject(uploadResult.error),
-        () => uploadResult.error,
-      );
+      return rejectWithError(uploadResult.error);
     }
   }
 
-  if (onProgress) {
-    onProgress("Processing...");
-  }
+  onProgress?.("Processing...");
 
   // デプロイが ready になるまでポーリング
-  const readyResultAsync = await waitForDeployReady(
-    token,
-    deploy.id,
-    (state) => {
-      if (onProgress) {
-        onProgress(`Processing (${state})...`);
-      }
-    },
+  const readyResultAsync = await waitForDeployReady(token, deploy.id, (state) =>
+    onProgress?.(`Processing (${state})...`),
   );
 
   const readyResult = await readyResultAsync;
 
   if (readyResult.isErr()) {
-    return ResultAsync.fromPromise(
-      Promise.reject(readyResult.error),
-      () => readyResult.error,
-    );
+    return rejectWithError(readyResult.error);
   }
 
   // 最終 URL を構築

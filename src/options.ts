@@ -11,30 +11,50 @@ import {
 } from "./lib/storage";
 
 /**
- * DOM要素の取得
+ * DOM要素の取得結果
  */
-function getElements() {
-  const netlifyTokenInput = document.getElementById(
-    "netlifyToken",
-  ) as HTMLInputElement;
-  const vercelTokenInput = document.getElementById(
-    "vercelToken",
-  ) as HTMLInputElement;
+interface OptionsElements {
+  netlifyTokenInput: HTMLInputElement;
+  vercelTokenInput: HTMLInputElement;
+  cloudflareAccountIdInput: HTMLInputElement;
+  cloudflareTokenInput: HTMLInputElement;
+  githubTokenInput: HTMLInputElement;
+  saveButton: HTMLButtonElement;
+  messageSpan: HTMLSpanElement;
+  providerRadios: NodeListOf<HTMLInputElement>;
+  radioItems: NodeListOf<HTMLLabelElement>;
+}
+
+/**
+ * DOM要素の取得（型安全）
+ */
+function getElements(): OptionsElements | null {
+  const netlifyTokenInput = document.getElementById("netlifyToken");
+  const vercelTokenInput = document.getElementById("vercelToken");
   const cloudflareAccountIdInput = document.getElementById(
     "cloudflareAccountId",
-  ) as HTMLInputElement;
-  const cloudflareTokenInput = document.getElementById(
-    "cloudflareToken",
-  ) as HTMLInputElement;
-  const githubTokenInput = document.getElementById(
-    "githubToken",
-  ) as HTMLInputElement;
-  const saveButton = document.getElementById("save") as HTMLButtonElement;
-  const messageSpan = document.getElementById("message") as HTMLSpanElement;
+  );
+  const cloudflareTokenInput = document.getElementById("cloudflareToken");
+  const githubTokenInput = document.getElementById("githubToken");
+  const saveButton = document.getElementById("save");
+  const messageSpan = document.getElementById("message");
   const providerRadios = document.querySelectorAll<HTMLInputElement>(
     'input[name="defaultProvider"]',
   );
   const radioItems = document.querySelectorAll<HTMLLabelElement>(".radio-item");
+
+  if (
+    !(netlifyTokenInput instanceof HTMLInputElement) ||
+    !(vercelTokenInput instanceof HTMLInputElement) ||
+    !(cloudflareAccountIdInput instanceof HTMLInputElement) ||
+    !(cloudflareTokenInput instanceof HTMLInputElement) ||
+    !(githubTokenInput instanceof HTMLInputElement) ||
+    !(saveButton instanceof HTMLButtonElement) ||
+    !(messageSpan instanceof HTMLSpanElement)
+  ) {
+    console.error("Required DOM elements not found");
+    return null;
+  }
 
   return {
     netlifyTokenInput,
@@ -66,13 +86,97 @@ function updateRadioStyles(
 }
 
 /**
- * 保存成功メッセージを表示
+ * メッセージを表示
  */
-function showSaveMessage(messageSpan: HTMLSpanElement) {
-  messageSpan.textContent = "Saved!";
+function showMessage(
+  messageSpan: HTMLSpanElement,
+  text: string,
+  type: "success" | "error" = "success",
+) {
+  messageSpan.textContent = text;
+  messageSpan.style.color = type === "error" ? "#dc3545" : "#28a745";
   setTimeout(() => {
     messageSpan.textContent = "";
-  }, 2000);
+  }, 3000);
+}
+
+/**
+ * トークンの基本バリデーション
+ * - 空でないか
+ * - 明らかに無効な文字がないか
+ */
+function isValidToken(token: string): boolean {
+  if (!token.trim()) {
+    return true; // 空は許可（未設定状態）
+  }
+  // 空白や改行を含まない
+  if (/\s/.test(token)) {
+    return false;
+  }
+  // 最低限の長さ（トークンは通常10文字以上）
+  if (token.length < 10) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Cloudflare Account ID のバリデーション
+ * - 32文字の16進数
+ */
+function isValidCloudflareAccountId(id: string): boolean {
+  if (!id.trim()) {
+    return true; // 空は許可
+  }
+  return /^[a-f0-9]{32}$/i.test(id);
+}
+
+/**
+ * 設定のバリデーション
+ */
+function validateSettings(
+  netlifyToken: string,
+  vercelToken: string,
+  cloudflareAccountId: string,
+  cloudflareToken: string,
+  githubToken: string,
+  defaultProvider: DeployProvider,
+): string | null {
+  // トークンのバリデーション
+  if (!isValidToken(netlifyToken)) {
+    return "Invalid Netlify token format";
+  }
+  if (!isValidToken(vercelToken)) {
+    return "Invalid Vercel token format";
+  }
+  if (!isValidToken(cloudflareToken)) {
+    return "Invalid Cloudflare token format";
+  }
+  if (!isValidToken(githubToken)) {
+    return "Invalid GitHub token format";
+  }
+  if (!isValidCloudflareAccountId(cloudflareAccountId)) {
+    return "Invalid Cloudflare Account ID (should be 32 hex characters)";
+  }
+
+  // デフォルトプロバイダーに対応するトークンが設定されているか
+  const tokenMap: Record<DeployProvider, string> = {
+    netlify: netlifyToken,
+    vercel: vercelToken,
+    cloudflare: cloudflareToken,
+    gist: githubToken,
+  };
+
+  if (!tokenMap[defaultProvider]?.trim()) {
+    return `Please set a token for ${defaultProvider} (your default provider)`;
+  }
+
+  // Cloudflare の場合は Account ID も必要
+  if (defaultProvider === "cloudflare" && !cloudflareAccountId.trim()) {
+    return "Please set Cloudflare Account ID";
+  }
+
+  return null;
 }
 
 /**
@@ -87,6 +191,21 @@ async function saveSettings(
   defaultProvider: DeployProvider,
   messageSpan: HTMLSpanElement,
 ) {
+  // バリデーション
+  const error = validateSettings(
+    netlifyToken,
+    vercelToken,
+    cloudflareAccountId,
+    cloudflareToken,
+    githubToken,
+    defaultProvider,
+  );
+
+  if (error) {
+    showMessage(messageSpan, error, "error");
+    return;
+  }
+
   await setMultipleStorageData({
     netlifyToken,
     vercelToken,
@@ -95,7 +214,7 @@ async function saveSettings(
     githubToken,
     defaultProvider,
   });
-  showSaveMessage(messageSpan);
+  showMessage(messageSpan, "Saved!", "success");
 }
 
 /**
@@ -162,6 +281,11 @@ function getSelectedProvider(
  * 初期化
  */
 document.addEventListener("DOMContentLoaded", () => {
+  const elements = getElements();
+  if (!elements) {
+    return;
+  }
+
   const {
     netlifyTokenInput,
     vercelTokenInput,
@@ -172,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messageSpan,
     providerRadios,
     radioItems,
-  } = getElements();
+  } = elements;
 
   // 保存済み設定を読み込み
   loadSettings(

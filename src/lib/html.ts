@@ -52,31 +52,12 @@ ${content}
 
 /**
  * highlight.js CDN (シンタックスハイライト)
+ * common bundle を使用（37言語を含む、個別読み込みより効率的）
+ * https://highlightjs.org/download
  */
 const HIGHLIGHT_JS_CDN = `
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/javascript.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/typescript.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/java.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/sql.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/bash.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/json.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/yaml.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/xml.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/css.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/markdown.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/go.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/rust.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/ruby.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/php.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/c.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/cpp.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/csharp.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/kotlin.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/swift.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/dockerfile.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
 <script>hljs.highlightAll();</script>
 `;
 
@@ -91,7 +72,6 @@ const KATEX_CDN = `
  * Markdown スタイル
  */
 const MARKDOWN_STYLES = `
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
 ${KATEX_CDN}
 <style>
   body {
