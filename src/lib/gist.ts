@@ -5,7 +5,7 @@
 
 import { type GistResponse, GistResponseSchema } from "@/schemas/gist";
 import ky, { HTTPError } from "ky";
-import { ResultAsync } from "neverthrow";
+import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import {
   ApiError,
   AuthenticationError,
@@ -97,9 +97,9 @@ function createGist(
 }
 
 /**
- * Gistにデプロイし、GistHack URLを取得する (Result版)
+ * Gistにデプロイし、GistHack URLを取得する
  */
-export function deployToGistResult(
+export function deployToGist(
   token: string,
   content: string,
   theme: CssTheme = "default",
@@ -109,36 +109,13 @@ export function deployToGistResult(
   return createGist(token, processed).andThen((gist) => {
     const file = gist.files[processed.filename];
     if (!file || !file.raw_url) {
-      return ResultAsync.fromPromise(
-        Promise.reject(ValidationError.invalidResponse("Missing raw_url")),
-        () => ValidationError.invalidResponse("Missing raw_url"),
-      );
+      return errAsync(ValidationError.invalidResponse("Missing raw_url"));
     }
 
-    return ResultAsync.fromSafePromise(
-      Promise.resolve({
-        gistId: gist.id,
-        gistUrl: gist.html_url,
-        deployUrl: convertToGistHackUrl(file.raw_url),
-      }),
-    );
+    return okAsync({
+      gistId: gist.id,
+      gistUrl: gist.html_url,
+      deployUrl: convertToGistHackUrl(file.raw_url),
+    });
   });
-}
-
-/**
- * Gistにデプロイし、GistHack URLを取得する (後方互換性のため維持)
- * @deprecated deployToGistResult を使用してください
- */
-export async function deployToGist(
-  token: string,
-  content: string,
-  theme: CssTheme = "default",
-): Promise<string> {
-  const result = await deployToGistResult(token, content, theme);
-
-  if (result.isErr()) {
-    throw result.error;
-  }
-
-  return result.value.deployUrl;
 }
