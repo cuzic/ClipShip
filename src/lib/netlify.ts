@@ -15,6 +15,7 @@ import {
   rejectWithError,
 } from "./deploy-utils";
 import { ApiError, type DeployError } from "./errors";
+import { sha1 } from "./hash";
 import { processContent } from "./html";
 import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
@@ -26,17 +27,6 @@ const CLIPSHIP_SITE_PREFIX = "clipship-";
 
 // 共通エラーマッパー
 const mapUnknownError = createUnknownErrorMapper("Netlify");
-
-/**
- * 文字列の SHA1 ハッシュを計算
- */
-async function sha1(content: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 /**
  * 指定時間待機

@@ -20,6 +20,7 @@ import {
   rejectWithError,
 } from "./deploy-utils";
 import type { DeployError } from "./errors";
+import { sha256 } from "./hash";
 import { processContent } from "./html";
 import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
@@ -28,17 +29,6 @@ const CLIPSHIP_PROJECT_PREFIX = "clipship-";
 
 // 共通エラーマッパー
 const mapUnknownError = createUnknownErrorMapper("Cloudflare");
-
-/**
- * SHA-256 ハッシュを計算
- */
-async function sha256(content: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 /**
  * プロジェクト一覧を取得
