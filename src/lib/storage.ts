@@ -4,6 +4,31 @@
  */
 
 /**
+ * ストレージエラー
+ */
+export class StorageError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "StorageError";
+  }
+}
+
+/**
+ * Chrome runtime.lastError をチェックしてエラーをスロー
+ */
+function checkLastError(): void {
+  if (chrome.runtime.lastError) {
+    throw new StorageError(
+      chrome.runtime.lastError.message || "Unknown storage error",
+      chrome.runtime.lastError,
+    );
+  }
+}
+
+/**
  * デプロイプロバイダーの種類
  */
 export type DeployProvider = "netlify" | "vercel" | "cloudflare" | "gist";
@@ -26,9 +51,14 @@ type StorageKeys =
  * ストレージからデータを取得する
  */
 export function getStorageData(key: StorageKeys): Promise<string | undefined> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.get([key], (result) => {
-      resolve(result[key] as string | undefined);
+      try {
+        checkLastError();
+        resolve(result[key] as string | undefined);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -37,9 +67,14 @@ export function getStorageData(key: StorageKeys): Promise<string | undefined> {
  * ストレージにデータを保存する
  */
 export function setStorageData(key: StorageKeys, value: string): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.set({ [key]: value }, () => {
-      resolve();
+      try {
+        checkLastError();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -50,9 +85,14 @@ export function setStorageData(key: StorageKeys, value: string): Promise<void> {
 export function setMultipleStorageData(
   data: Partial<Record<StorageKeys, string>>,
 ): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.set(data, () => {
-      resolve();
+      try {
+        checkLastError();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -63,9 +103,14 @@ export function setMultipleStorageData(
 export function getMultipleStorageData(
   keys: StorageKeys[],
 ): Promise<Partial<Record<StorageKeys, string>>> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.get(keys, (result) => {
-      resolve(result as Partial<Record<StorageKeys, string>>);
+      try {
+        checkLastError();
+        resolve(result as Partial<Record<StorageKeys, string>>);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -106,9 +151,14 @@ const MAX_HISTORY_ENTRIES = 100;
  * デプロイ履歴を取得
  */
 export function getDeployHistory(): Promise<DeployHistoryEntry[]> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(["deployHistory"], (result) => {
-      resolve((result.deployHistory as DeployHistoryEntry[]) || []);
+      try {
+        checkLastError();
+        resolve((result.deployHistory as DeployHistoryEntry[]) || []);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -130,9 +180,14 @@ export async function addDeployHistory(
   // 先頭に追加し、最大件数を超えたら古いものを削除
   const updatedHistory = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.set({ deployHistory: updatedHistory }, () => {
-      resolve(newEntry);
+      try {
+        checkLastError();
+        resolve(newEntry);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -149,9 +204,14 @@ export async function updateDeployHistoryTitle(
     entry.id === id ? { ...entry, title } : entry,
   );
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.set({ deployHistory: updatedHistory }, () => {
-      resolve();
+      try {
+        checkLastError();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -163,9 +223,14 @@ export async function deleteDeployHistory(id: string): Promise<void> {
   const history = await getDeployHistory();
   const updatedHistory = history.filter((entry) => entry.id !== id);
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.set({ deployHistory: updatedHistory }, () => {
-      resolve();
+      try {
+        checkLastError();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -174,9 +239,14 @@ export async function deleteDeployHistory(id: string): Promise<void> {
  * デプロイ履歴をすべて削除
  */
 export function clearDeployHistory(): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.set({ deployHistory: [] }, () => {
-      resolve();
+      try {
+        checkLastError();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }

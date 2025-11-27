@@ -1,8 +1,15 @@
 /**
  * タイトル抽出モジュールのテスト
  */
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { extractTitle } from "@/lib/title";
+import { Window } from "happy-dom";
+
+// DOMParser をグローバルに設定
+beforeAll(() => {
+  const window = new Window();
+  globalThis.DOMParser = window.DOMParser as unknown as typeof DOMParser;
+});
 
 describe("extractTitle", () => {
   describe("HTML コンテンツ", () => {
@@ -20,6 +27,20 @@ describe("extractTitle", () => {
       const content = "<div><h1>Main Heading</h1><p>Content</p></div>";
       const result = extractTitle(content, "html");
       expect(result).toBe("Main Heading");
+    });
+
+    test("should extract title from <h1> with nested elements", () => {
+      const content =
+        '<div><h1 class="title"><span>Nested</span> Heading</h1></div>';
+      const result = extractTitle(content, "html");
+      expect(result).toBe("Nested Heading");
+    });
+
+    test("should extract title from <h1> with attributes", () => {
+      const content =
+        '<h1 id="main" class="heading" data-test="value">Attributed Heading</h1>';
+      const result = extractTitle(content, "html");
+      expect(result).toBe("Attributed Heading");
     });
 
     test("should fallback to default when no title or h1", () => {

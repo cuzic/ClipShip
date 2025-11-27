@@ -11,20 +11,24 @@ import type { ContentType } from "./detect";
 const MAX_TITLE_LENGTH = 100;
 
 /**
- * HTML からタイトルを抽出
+ * HTML からタイトルを抽出（DOM パーサー使用）
  * 優先順位: <title> > <h1> > 最初の行
  */
 function extractTitleFromHtml(content: string): string | null {
+  // DOMParser を使用して堅牢にパース
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(content, "text/html");
+
   // <title> タグを検索
-  const titleMatch = content.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch?.[1]?.trim()) {
-    return titleMatch[1].trim();
+  const titleElement = doc.querySelector("title");
+  if (titleElement?.textContent?.trim()) {
+    return titleElement.textContent.trim();
   }
 
-  // <h1> タグを検索
-  const h1Match = content.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-  if (h1Match?.[1]?.trim()) {
-    return h1Match[1].trim();
+  // <h1> タグを検索（ネストした要素も対応）
+  const h1Element = doc.querySelector("h1");
+  if (h1Element?.textContent?.trim()) {
+    return h1Element.textContent.trim();
   }
 
   return null;

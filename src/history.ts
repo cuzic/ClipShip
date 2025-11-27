@@ -58,24 +58,26 @@ function showToast(message: string) {
 }
 
 /**
- * 履歴アイテムの HTML を生成
+ * 履歴アイテムの HTML を生成（アクセシビリティ対応）
  */
 function createHistoryItemHtml(entry: DeployHistoryEntry): string {
+  const escapedTitle = escapeHtml(entry.title);
+  const escapedUrl = escapeHtml(entry.url);
   return `
-    <div class="history-item" data-id="${entry.id}">
+    <div class="history-item" data-id="${entry.id}" role="listitem">
       <span class="provider-badge ${entry.provider}">${PROVIDER_NAMES[entry.provider]}</span>
       <div class="history-content">
         <div class="history-title">
-          <span class="title-text">${escapeHtml(entry.title)}</span>
+          <span class="title-text">${escapedTitle}</span>
           <span class="content-type">${CONTENT_TYPE_NAMES[entry.contentType] || entry.contentType}</span>
         </div>
-        <a href="${entry.url}" target="_blank" class="history-url">${entry.url}</a>
+        <a href="${entry.url}" target="_blank" rel="noopener noreferrer" class="history-url">${escapedUrl}</a>
         <div class="history-meta">${formatDate(entry.deployedAt)}</div>
       </div>
-      <div class="history-actions">
-        <button class="btn-icon copy" title="Copy URL">📋</button>
-        <button class="btn-icon edit" title="Edit title">✏️</button>
-        <button class="btn-icon delete" title="Delete">🗑️</button>
+      <div class="history-actions" role="group" aria-label="Actions for ${escapedTitle}">
+        <button class="btn-icon copy" type="button" aria-label="Copy URL to clipboard" title="Copy URL">📋</button>
+        <button class="btn-icon edit" type="button" aria-label="Edit title" title="Edit title">✏️</button>
+        <button class="btn-icon delete" type="button" aria-label="Delete entry" title="Delete">🗑️</button>
       </div>
     </div>
   `;
@@ -115,108 +117,150 @@ async function renderHistory() {
 
   clearBtn.disabled = false;
   container.innerHTML = `
-    <div class="history-list">
+    <div class="history-list" role="list" aria-label="Deploy history">
       ${history.map(createHistoryItemHtml).join("")}
     </div>
   `;
-
-  // イベントリスナーを設定
-  setupEventListeners();
 }
 
 /**
- * イベントリスナーを設定
+ * コピーボタンのハンドラ
  */
-function setupEventListeners() {
-  const container = document.getElementById(
-    "history-container",
-  ) as HTMLDivElement;
-
-  // コピーボタン
-  for (const btn of container.querySelectorAll(".btn-icon.copy")) {
-    btn.addEventListener("click", async (e) => {
-      const item = (e.target as HTMLElement).closest(".history-item");
-      const url = item?.querySelector(".history-url")?.textContent;
-      if (url) {
-        await navigator.clipboard.writeText(url);
-        showToast("URL copied to clipboard!");
-      }
-    });
+async function handleCopy(item: HTMLElement): Promise<void> {
+  const url = item.querySelector(".history-url")?.textContent;
+  if (url) {
+    await navigator.clipboard.writeText(url);
+    showToast("URL copied to clipboard!");
   }
+}
 
-  // 編集ボタン
-  for (const btn of container.querySelectorAll(".btn-icon.edit")) {
-    btn.addEventListener("click", (e) => {
-      const item = (e.target as HTMLElement).closest(
-        ".history-item",
-      ) as HTMLElement;
-      const id = item.dataset.id;
-      const titleSpan = item.querySelector(".title-text") as HTMLElement;
-      const currentTitle = titleSpan.textContent || "";
+/**
+ * 編集ボタンのハンドラ
+ */
+function handleEdit(item: HTMLElement): void {
+  const id = item.dataset.id;
+  if (!id) return;
 
-      // 入力フィールドに置き換え
-      const input = document.createElement("input");
-      input.type = "text";
+  const titleSpan = item.querySelector(".title-text");
+  if (!titleSpan || !(titleSpan instanceof HTMLElement)) return;
+
+  const currentTitle = titleSpan.textContent || "";
+  const titleDiv = titleSpan.parentElement;
+  if (!titleDiv) return;
+
+  // 入力フィールドに置き換え
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = currentTitle;
+  input.setAttribute("aria-label", "Edit title");
+  input.style.cssText =
+    "flex: 1; font-size: 15px; font-weight: 600; border: 1px solid #0066cc; border-radius: 4px; padding: 4px 8px;";
+
+  titleDiv.replaceChild(input, titleSpan);
+  input.focus();
+  input.select();
+
+  // 保存処理
+  const saveTitle = async () => {
+    const newTitle = input.value.trim() || currentTitle;
+    if (newTitle !== currentTitle) {
+      await updateDeployHistoryTitle(id, newTitle);
+      showToast("Title updated!");
+    }
+
+    const newSpan = document.createElement("span");
+    newSpan.className = "title-text";
+    newSpan.textContent = newTitle;
+    titleDiv.replaceChild(newSpan, input);
+  };
+
+  input.addEventListener("blur", saveTitle);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      input.blur();
+    } else if (e.key === "Escape") {
       input.value = currentTitle;
-      input.style.cssText =
-        "flex: 1; font-size: 15px; font-weight: 600; border: 1px solid #0066cc; border-radius: 4px; padding: 4px 8px;";
+      input.blur();
+    }
+  });
+}
 
-      const titleDiv = titleSpan.parentElement as HTMLElement;
-      titleDiv.replaceChild(input, titleSpan);
-      input.focus();
-      input.select();
+/**
+ * 削除ボタンのハンドラ
+ */
+async function handleDelete(item: HTMLElement): Promise<void> {
+  const id = item.dataset.id;
+  if (!id) return;
 
-      // 保存処理
-      const saveTitle = async () => {
-        const newTitle = input.value.trim() || currentTitle;
-        if (id && newTitle !== currentTitle) {
-          await updateDeployHistoryTitle(id, newTitle);
-          showToast("Title updated!");
-        }
-
-        const newSpan = document.createElement("span");
-        newSpan.className = "title-text";
-        newSpan.textContent = newTitle;
-        titleDiv.replaceChild(newSpan, input);
-      };
-
-      input.addEventListener("blur", saveTitle);
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          input.blur();
-        } else if (e.key === "Escape") {
-          input.value = currentTitle;
-          input.blur();
-        }
-      });
-    });
+  if (confirm("Delete this entry?")) {
+    await deleteDeployHistory(id);
+    await renderHistory();
+    showToast("Entry deleted");
   }
+}
 
-  // 削除ボタン
-  for (const btn of container.querySelectorAll(".btn-icon.delete")) {
-    btn.addEventListener("click", async (e) => {
-      const item = (e.target as HTMLElement).closest(
-        ".history-item",
-      ) as HTMLElement;
-      const id = item.dataset.id;
+/**
+ * イベント委譲を使ったイベントリスナーを設定
+ */
+function setupEventListeners(container: HTMLElement): void {
+  container.addEventListener("click", async (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
 
-      if (id && confirm("Delete this entry?")) {
-        await deleteDeployHistory(id);
-        await renderHistory();
-        showToast("Entry deleted");
-      }
-    });
-  }
+    const button = target.closest("button");
+    if (!button) return;
+
+    const item = button.closest(".history-item");
+    if (!item || !(item instanceof HTMLElement)) return;
+
+    if (button.classList.contains("copy")) {
+      await handleCopy(item);
+    } else if (button.classList.contains("edit")) {
+      handleEdit(item);
+    } else if (button.classList.contains("delete")) {
+      await handleDelete(item);
+    }
+  });
+
+  // キーボードナビゲーション対応
+  container.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("button");
+    if (!button) return;
+
+    // スペースキーでのスクロールを防止
+    if (e.key === " ") {
+      e.preventDefault();
+    }
+
+    // クリックイベントをトリガー
+    button.click();
+  });
 }
 
 /**
  * 初期化
  */
 document.addEventListener("DOMContentLoaded", async () => {
+  const container = document.getElementById("history-container");
+  const clearBtn = document.getElementById("btn-clear");
+
+  if (!container || !clearBtn) {
+    console.error("Required elements not found");
+    return;
+  }
+
+  // イベント委譲を設定（一度だけ）
+  setupEventListeners(container);
+
+  // 履歴を描画
   await renderHistory();
 
   // Clear All ボタン
-  const clearBtn = document.getElementById("btn-clear") as HTMLButtonElement;
   clearBtn.addEventListener("click", async () => {
     if (confirm("Clear all deploy history? This cannot be undone.")) {
       await clearDeployHistory();
