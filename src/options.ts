@@ -4,7 +4,9 @@
  */
 
 import {
+  type CssTheme,
   type DeployProvider,
+  getCssTheme,
   getDefaultProvider,
   getMultipleStorageData,
   setMultipleStorageData,
@@ -22,7 +24,9 @@ interface OptionsElements {
   saveButton: HTMLButtonElement;
   messageSpan: HTMLSpanElement;
   providerRadios: NodeListOf<HTMLInputElement>;
-  radioItems: NodeListOf<HTMLLabelElement>;
+  providerRadioItems: NodeListOf<HTMLLabelElement>;
+  themeRadios: NodeListOf<HTMLInputElement>;
+  themeRadioItems: NodeListOf<HTMLLabelElement>;
 }
 
 /**
@@ -41,7 +45,13 @@ function getElements(): OptionsElements | null {
   const providerRadios = document.querySelectorAll<HTMLInputElement>(
     'input[name="defaultProvider"]',
   );
-  const radioItems = document.querySelectorAll<HTMLLabelElement>(".radio-item");
+  const providerRadioItems =
+    document.querySelectorAll<HTMLLabelElement>("[data-provider]");
+  const themeRadios = document.querySelectorAll<HTMLInputElement>(
+    'input[name="cssTheme"]',
+  );
+  const themeRadioItems =
+    document.querySelectorAll<HTMLLabelElement>("[data-theme]");
 
   if (
     !(netlifyTokenInput instanceof HTMLInputElement) ||
@@ -65,19 +75,37 @@ function getElements(): OptionsElements | null {
     saveButton,
     messageSpan,
     providerRadios,
-    radioItems,
+    providerRadioItems,
+    themeRadios,
+    themeRadioItems,
   };
 }
 
 /**
  * 選択されたプロバイダーのスタイルを更新
  */
-function updateRadioStyles(
+function updateProviderStyles(
   radioItems: NodeListOf<HTMLLabelElement>,
   selectedProvider: string,
 ) {
   for (const item of radioItems) {
     if (item.dataset.provider === selectedProvider) {
+      item.classList.add("selected");
+    } else {
+      item.classList.remove("selected");
+    }
+  }
+}
+
+/**
+ * 選択されたテーマのスタイルを更新
+ */
+function updateThemeStyles(
+  radioItems: NodeListOf<HTMLLabelElement>,
+  selectedTheme: string,
+) {
+  for (const item of radioItems) {
+    if (item.dataset.theme === selectedTheme) {
       item.classList.add("selected");
     } else {
       item.classList.remove("selected");
@@ -189,6 +217,7 @@ async function saveSettings(
   cloudflareToken: string,
   githubToken: string,
   defaultProvider: DeployProvider,
+  cssTheme: CssTheme,
   messageSpan: HTMLSpanElement,
 ) {
   // バリデーション
@@ -213,6 +242,7 @@ async function saveSettings(
     cloudflareToken,
     githubToken,
     defaultProvider,
+    cssTheme,
   });
   showMessage(messageSpan, "Saved!", "success");
 }
@@ -227,7 +257,9 @@ async function loadSettings(
   cloudflareTokenInput: HTMLInputElement,
   githubTokenInput: HTMLInputElement,
   providerRadios: NodeListOf<HTMLInputElement>,
-  radioItems: NodeListOf<HTMLLabelElement>,
+  providerRadioItems: NodeListOf<HTMLLabelElement>,
+  themeRadios: NodeListOf<HTMLInputElement>,
+  themeRadioItems: NodeListOf<HTMLLabelElement>,
 ) {
   const data = await getMultipleStorageData([
     "netlifyToken",
@@ -260,7 +292,16 @@ async function loadSettings(
       radio.checked = true;
     }
   }
-  updateRadioStyles(radioItems, defaultProvider);
+  updateProviderStyles(providerRadioItems, defaultProvider);
+
+  // CSS テーマを読み込み
+  const cssTheme = await getCssTheme();
+  for (const radio of themeRadios) {
+    if (radio.value === cssTheme) {
+      radio.checked = true;
+    }
+  }
+  updateThemeStyles(themeRadioItems, cssTheme);
 }
 
 /**
@@ -275,6 +316,18 @@ function getSelectedProvider(
     }
   }
   return "netlify";
+}
+
+/**
+ * 選択されたテーマを取得
+ */
+function getSelectedTheme(themeRadios: NodeListOf<HTMLInputElement>): CssTheme {
+  for (const radio of themeRadios) {
+    if (radio.checked) {
+      return radio.value as CssTheme;
+    }
+  }
+  return "default";
 }
 
 /**
@@ -295,7 +348,9 @@ document.addEventListener("DOMContentLoaded", () => {
     saveButton,
     messageSpan,
     providerRadios,
-    radioItems,
+    providerRadioItems,
+    themeRadios,
+    themeRadioItems,
   } = elements;
 
   // 保存済み設定を読み込み
@@ -306,19 +361,29 @@ document.addEventListener("DOMContentLoaded", () => {
     cloudflareTokenInput,
     githubTokenInput,
     providerRadios,
-    radioItems,
+    providerRadioItems,
+    themeRadios,
+    themeRadioItems,
   );
 
-  // ラジオボタンの変更イベント
+  // プロバイダーラジオボタンの変更イベント
   for (const radio of providerRadios) {
     radio.addEventListener("change", () => {
-      updateRadioStyles(radioItems, radio.value);
+      updateProviderStyles(providerRadioItems, radio.value);
+    });
+  }
+
+  // テーマラジオボタンの変更イベント
+  for (const radio of themeRadios) {
+    radio.addEventListener("change", () => {
+      updateThemeStyles(themeRadioItems, radio.value);
     });
   }
 
   // 保存ボタンのクリックイベント
   saveButton.addEventListener("click", () => {
     const selectedProvider = getSelectedProvider(providerRadios);
+    const selectedTheme = getSelectedTheme(themeRadios);
     saveSettings(
       netlifyTokenInput.value,
       vercelTokenInput.value,
@@ -326,6 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
       cloudflareTokenInput.value,
       githubTokenInput.value,
       selectedProvider,
+      selectedTheme,
       messageSpan,
     );
   });
