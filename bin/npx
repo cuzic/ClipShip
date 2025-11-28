@@ -1,7 +1,0 @@
-#!/bin/bash
-echo "Error: このプロジェクトでは npx を使用しません。" >&2
-echo "代わりに bunx を使用してください。" >&2
-echo "" >&2
-echo "例:" >&2
-echo "  bunx <cmd>  # npx <cmd> の代わり" >&2
-exit 1

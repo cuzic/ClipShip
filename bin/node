@@ -1,9 +1,0 @@
-#!/bin/bash
-echo "Error: このプロジェクトでは node を直接使用しません。" >&2
-echo "代わりに bun を使用してください。" >&2
-echo "" >&2
-echo "例:" >&2
-echo "  bun install    # 依存関係のインストール" >&2
-echo "  bun run build  # ビルド" >&2
-echo "  bun test       # テスト実行" >&2
-exit 1

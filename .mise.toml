@@ -2,9 +2,6 @@
 bun = "latest"
 "npm:netlify-cli" = "latest"
 
-[env]
-_.path = ["bin"]
-
 [tasks.dev]
 run = "bun run dev"
 
