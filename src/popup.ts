@@ -166,14 +166,17 @@ interface DeployConfig {
 const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
   netlify: {
     getCredentials: () =>
-      ResultAsync.fromSafePromise(getStorageData("netlifyToken")).andThen(
-        (token) =>
-          token
-            ? okAsync({ token })
-            : errAsync(
-                new CredentialError("Netlify Token not set in Options."),
-              ),
-      ),
+      ResultAsync.fromSafePromise(
+        Promise.all([
+          getStorageData("netlifyOAuthToken"),
+          getStorageData("netlifyToken"),
+        ]),
+      ).andThen(([oauthToken, manualToken]) => {
+        const token = oauthToken || manualToken;
+        return token
+          ? okAsync({ token })
+          : errAsync(new CredentialError("Netlify Token not set in Options."));
+      }),
     deploy: (token, _accountId, text, onProgress, theme) =>
       deployToNetlify(token, text, onProgress, theme).map((r) => r.deployUrl),
   },
@@ -217,12 +220,17 @@ const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
   },
   gist: {
     getCredentials: () =>
-      ResultAsync.fromSafePromise(getStorageData("githubToken")).andThen(
-        (token) =>
-          token
-            ? okAsync({ token })
-            : errAsync(new CredentialError("GitHub Token not set in Options.")),
-      ),
+      ResultAsync.fromSafePromise(
+        Promise.all([
+          getStorageData("githubOAuthToken"),
+          getStorageData("githubToken"),
+        ]),
+      ).andThen(([oauthToken, manualToken]) => {
+        const token = oauthToken || manualToken;
+        return token
+          ? okAsync({ token })
+          : errAsync(new CredentialError("GitHub Token not set in Options."));
+      }),
     deploy: (token, _accountId, text, onProgress, theme) => {
       onProgress("Creating Gist...");
       return deployToGist(token, text, theme).map((r) => r.deployUrl);

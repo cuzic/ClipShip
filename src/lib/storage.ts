@@ -50,7 +50,9 @@ export type CssTheme =
  */
 type StorageKeys =
   | "netlifyToken"
+  | "netlifyOAuthToken"
   | "githubToken"
+  | "githubOAuthToken"
   | "netlifySiteId"
   | "vercelToken"
   | "vercelProjectId"

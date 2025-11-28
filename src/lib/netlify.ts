@@ -198,21 +198,31 @@ async function pollDeployStatus(
   onProgress?: (state: string) => void,
 ): Promise<ResultAsync<Deploy, DeployError>> {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const deployResult = await getDeploy(token, deployId);
+    const result = await getDeploy(token, deployId).match(
+      (deploy) => {
+        onProgress?.(deploy.state);
+        if (deploy.state === "ready") {
+          return {
+            done: true as const,
+            value: okAsync<Deploy, DeployError>(deploy),
+          };
+        }
+        if (deploy.state === "error") {
+          return {
+            done: true as const,
+            value: errAsync<Deploy, DeployError>(ApiError.deployFailed()),
+          };
+        }
+        return { done: false as const };
+      },
+      (error) => ({
+        done: true as const,
+        value: errAsync<Deploy, DeployError>(error),
+      }),
+    );
 
-    if (deployResult.isErr()) {
-      return errAsync(deployResult.error);
-    }
-
-    const deploy = deployResult.value;
-    onProgress?.(deploy.state);
-
-    if (deploy.state === "ready") {
-      return okAsync(deploy);
-    }
-
-    if (deploy.state === "error") {
-      return errAsync(ApiError.deployFailed());
+    if (result.done) {
+      return result.value;
     }
 
     await sleep(POLL_INTERVAL_MS);

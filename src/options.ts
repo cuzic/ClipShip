@@ -4,11 +4,24 @@
  */
 
 import {
+  clearGitHubOAuthToken,
+  getGitHubOAuthToken,
+  getGitHubUser,
+  startGitHubOAuth,
+} from "./lib/github-oauth";
+import {
+  clearNetlifyOAuthToken,
+  getNetlifyOAuthToken,
+  getNetlifyUser,
+  startNetlifyOAuth,
+} from "./lib/netlify-oauth";
+import {
   type CssTheme,
   type DeployProvider,
   getCssTheme,
   getDefaultProvider,
   getMultipleStorageData,
+  getStorageData,
   setMultipleStorageData,
 } from "./lib/storage";
 
@@ -17,10 +30,16 @@ import {
  */
 interface OptionsElements {
   netlifyTokenInput: HTMLInputElement;
+  netlifyOAuthBtn: HTMLButtonElement;
+  netlifyLogoutBtn: HTMLButtonElement;
+  netlifyOAuthStatus: HTMLDivElement;
   vercelTokenInput: HTMLInputElement;
   cloudflareAccountIdInput: HTMLInputElement;
   cloudflareTokenInput: HTMLInputElement;
   githubTokenInput: HTMLInputElement;
+  githubOAuthBtn: HTMLButtonElement;
+  githubLogoutBtn: HTMLButtonElement;
+  githubOAuthStatus: HTMLDivElement;
   saveButton: HTMLButtonElement;
   messageSpan: HTMLSpanElement;
   providerRadios: NodeListOf<HTMLInputElement>;
@@ -34,12 +53,18 @@ interface OptionsElements {
  */
 function getElements(): OptionsElements | null {
   const netlifyTokenInput = document.getElementById("netlifyToken");
+  const netlifyOAuthBtn = document.getElementById("netlifyOAuthBtn");
+  const netlifyLogoutBtn = document.getElementById("netlifyLogoutBtn");
+  const netlifyOAuthStatus = document.getElementById("netlifyOAuthStatus");
   const vercelTokenInput = document.getElementById("vercelToken");
   const cloudflareAccountIdInput = document.getElementById(
     "cloudflareAccountId",
   );
   const cloudflareTokenInput = document.getElementById("cloudflareToken");
   const githubTokenInput = document.getElementById("githubToken");
+  const githubOAuthBtn = document.getElementById("githubOAuthBtn");
+  const githubLogoutBtn = document.getElementById("githubLogoutBtn");
+  const githubOAuthStatus = document.getElementById("githubOAuthStatus");
   const saveButton = document.getElementById("save");
   const messageSpan = document.getElementById("message");
   const providerRadios = document.querySelectorAll<HTMLInputElement>(
@@ -55,10 +80,16 @@ function getElements(): OptionsElements | null {
 
   if (
     !(netlifyTokenInput instanceof HTMLInputElement) ||
+    !(netlifyOAuthBtn instanceof HTMLButtonElement) ||
+    !(netlifyLogoutBtn instanceof HTMLButtonElement) ||
+    !(netlifyOAuthStatus instanceof HTMLDivElement) ||
     !(vercelTokenInput instanceof HTMLInputElement) ||
     !(cloudflareAccountIdInput instanceof HTMLInputElement) ||
     !(cloudflareTokenInput instanceof HTMLInputElement) ||
     !(githubTokenInput instanceof HTMLInputElement) ||
+    !(githubOAuthBtn instanceof HTMLButtonElement) ||
+    !(githubLogoutBtn instanceof HTMLButtonElement) ||
+    !(githubOAuthStatus instanceof HTMLDivElement) ||
     !(saveButton instanceof HTMLButtonElement) ||
     !(messageSpan instanceof HTMLSpanElement)
   ) {
@@ -68,10 +99,16 @@ function getElements(): OptionsElements | null {
 
   return {
     netlifyTokenInput,
+    netlifyOAuthBtn,
+    netlifyLogoutBtn,
+    netlifyOAuthStatus,
     vercelTokenInput,
     cloudflareAccountIdInput,
     cloudflareTokenInput,
     githubTokenInput,
+    githubOAuthBtn,
+    githubLogoutBtn,
+    githubOAuthStatus,
     saveButton,
     messageSpan,
     providerRadios,
@@ -147,14 +184,14 @@ function isValidCloudflareAccountId(id: string): boolean {
 /**
  * 設定のバリデーション
  */
-function validateSettings(
+async function validateSettings(
   netlifyToken: string,
   vercelToken: string,
   cloudflareAccountId: string,
   cloudflareToken: string,
   githubToken: string,
   defaultProvider: DeployProvider,
-): string | null {
+): Promise<string | null> {
   // トークンのバリデーション
   if (!isValidToken(netlifyToken)) {
     return "Invalid Netlify token format";
@@ -172,15 +209,21 @@ function validateSettings(
     return "Invalid Cloudflare Account ID (should be 32 hex characters)";
   }
 
+  // OAuth トークンも確認
+  const netlifyOAuthToken = await getStorageData("netlifyOAuthToken");
+  const hasNetlifyAuth = !!(netlifyToken.trim() || netlifyOAuthToken);
+  const githubOAuthToken = await getStorageData("githubOAuthToken");
+  const hasGitHubAuth = !!(githubToken.trim() || githubOAuthToken);
+
   // デフォルトプロバイダーに対応するトークンが設定されているか
-  const tokenMap: Record<DeployProvider, string> = {
-    netlify: netlifyToken,
-    vercel: vercelToken,
-    cloudflare: cloudflareToken,
-    gist: githubToken,
+  const tokenMap: Record<DeployProvider, boolean> = {
+    netlify: hasNetlifyAuth,
+    vercel: !!vercelToken.trim(),
+    cloudflare: !!cloudflareToken.trim(),
+    gist: hasGitHubAuth,
   };
 
-  if (!tokenMap[defaultProvider]?.trim()) {
+  if (!tokenMap[defaultProvider]) {
     return `Please set a token for ${defaultProvider} (your default provider)`;
   }
 
@@ -206,7 +249,7 @@ async function saveSettings(
   messageSpan: HTMLSpanElement,
 ) {
   // バリデーション
-  const error = validateSettings(
+  const error = await validateSettings(
     netlifyToken,
     vercelToken,
     cloudflareAccountId,
@@ -305,6 +348,284 @@ function getSelectedRadioValue<T extends string>(
 }
 
 /**
+ * Netlify OAuth 状態を更新
+ */
+async function updateNetlifyOAuthStatus(
+  netlifyOAuthStatus: HTMLDivElement,
+  netlifyOAuthBtn: HTMLButtonElement,
+  netlifyLogoutBtn: HTMLButtonElement,
+  netlifyTokenInput: HTMLInputElement,
+) {
+  const result = await getNetlifyOAuthToken();
+
+  await result.match(
+    async (token) => {
+      if (token) {
+        // OAuth 認証済み - ユーザー情報を取得
+        const userResult = await getNetlifyUser(token);
+        userResult.match(
+          (user) => {
+            netlifyOAuthStatus.className = "oauth-status authenticated";
+            netlifyOAuthStatus.innerHTML = `
+              <div class="user-info">
+                <img src="${user.avatar_url}" alt="${user.full_name}" class="user-avatar">
+                <span>Signed in as <strong>${user.full_name || user.email}</strong></span>
+              </div>
+            `;
+            netlifyOAuthBtn.style.display = "none";
+            netlifyLogoutBtn.style.display = "inline-block";
+            netlifyTokenInput.disabled = true;
+            netlifyTokenInput.placeholder = "Using OAuth authentication";
+          },
+          () => {
+            // トークンが無効な場合
+            showNetlifyNotAuthenticated(
+              netlifyOAuthStatus,
+              netlifyOAuthBtn,
+              netlifyLogoutBtn,
+              netlifyTokenInput,
+            );
+          },
+        );
+      } else {
+        showNetlifyNotAuthenticated(
+          netlifyOAuthStatus,
+          netlifyOAuthBtn,
+          netlifyLogoutBtn,
+          netlifyTokenInput,
+        );
+      }
+    },
+    () => {
+      showNetlifyNotAuthenticated(
+        netlifyOAuthStatus,
+        netlifyOAuthBtn,
+        netlifyLogoutBtn,
+        netlifyTokenInput,
+      );
+    },
+  );
+}
+
+/**
+ * Netlify 未認証状態を表示
+ */
+function showNetlifyNotAuthenticated(
+  netlifyOAuthStatus: HTMLDivElement,
+  netlifyOAuthBtn: HTMLButtonElement,
+  netlifyLogoutBtn: HTMLButtonElement,
+  netlifyTokenInput: HTMLInputElement,
+) {
+  netlifyOAuthStatus.className = "oauth-status not-authenticated";
+  netlifyOAuthStatus.textContent = "Not signed in with Netlify";
+  netlifyOAuthBtn.style.display = "inline-block";
+  netlifyLogoutBtn.style.display = "none";
+  netlifyTokenInput.disabled = false;
+  netlifyTokenInput.placeholder = "Enter your Netlify token";
+}
+
+/**
+ * Netlify OAuth ログイン処理
+ */
+async function handleNetlifyOAuthLogin(
+  netlifyOAuthStatus: HTMLDivElement,
+  netlifyOAuthBtn: HTMLButtonElement,
+  netlifyLogoutBtn: HTMLButtonElement,
+  netlifyTokenInput: HTMLInputElement,
+  messageSpan: HTMLSpanElement,
+) {
+  netlifyOAuthBtn.disabled = true;
+  netlifyOAuthBtn.textContent = "Signing in...";
+
+  const result = await startNetlifyOAuth();
+
+  result.match(
+    () => {
+      showMessage(messageSpan, "Netlify authentication successful!", "success");
+      updateNetlifyOAuthStatus(
+        netlifyOAuthStatus,
+        netlifyOAuthBtn,
+        netlifyLogoutBtn,
+        netlifyTokenInput,
+      );
+    },
+    (error) => {
+      showMessage(messageSpan, error.message, "error");
+    },
+  );
+
+  netlifyOAuthBtn.disabled = false;
+  netlifyOAuthBtn.textContent = "Sign in with Netlify";
+}
+
+/**
+ * Netlify OAuth ログアウト処理
+ */
+async function handleNetlifyOAuthLogout(
+  netlifyOAuthStatus: HTMLDivElement,
+  netlifyOAuthBtn: HTMLButtonElement,
+  netlifyLogoutBtn: HTMLButtonElement,
+  netlifyTokenInput: HTMLInputElement,
+  messageSpan: HTMLSpanElement,
+) {
+  const result = await clearNetlifyOAuthToken();
+
+  result.match(
+    () => {
+      showMessage(messageSpan, "Signed out from Netlify", "success");
+      updateNetlifyOAuthStatus(
+        netlifyOAuthStatus,
+        netlifyOAuthBtn,
+        netlifyLogoutBtn,
+        netlifyTokenInput,
+      );
+    },
+    (error) => {
+      showMessage(messageSpan, error.message, "error");
+    },
+  );
+}
+
+/**
+ * GitHub OAuth 状態を更新
+ */
+async function updateGitHubOAuthStatus(
+  githubOAuthStatus: HTMLDivElement,
+  githubOAuthBtn: HTMLButtonElement,
+  githubLogoutBtn: HTMLButtonElement,
+  githubTokenInput: HTMLInputElement,
+) {
+  const result = await getGitHubOAuthToken();
+
+  await result.match(
+    async (token) => {
+      if (token) {
+        // OAuth 認証済み - ユーザー情報を取得
+        const userResult = await getGitHubUser(token);
+        userResult.match(
+          (user) => {
+            githubOAuthStatus.className = "oauth-status authenticated";
+            githubOAuthStatus.innerHTML = `
+              <div class="user-info">
+                <img src="${user.avatar_url}" alt="${user.login}" class="user-avatar">
+                <span>Signed in as <strong>${user.login}</strong></span>
+              </div>
+            `;
+            githubOAuthBtn.style.display = "none";
+            githubLogoutBtn.style.display = "inline-block";
+            githubTokenInput.disabled = true;
+            githubTokenInput.placeholder = "Using OAuth authentication";
+          },
+          () => {
+            // トークンが無効な場合
+            showNotAuthenticated(
+              githubOAuthStatus,
+              githubOAuthBtn,
+              githubLogoutBtn,
+              githubTokenInput,
+            );
+          },
+        );
+      } else {
+        showNotAuthenticated(
+          githubOAuthStatus,
+          githubOAuthBtn,
+          githubLogoutBtn,
+          githubTokenInput,
+        );
+      }
+    },
+    () => {
+      showNotAuthenticated(
+        githubOAuthStatus,
+        githubOAuthBtn,
+        githubLogoutBtn,
+        githubTokenInput,
+      );
+    },
+  );
+}
+
+/**
+ * 未認証状態を表示
+ */
+function showNotAuthenticated(
+  githubOAuthStatus: HTMLDivElement,
+  githubOAuthBtn: HTMLButtonElement,
+  githubLogoutBtn: HTMLButtonElement,
+  githubTokenInput: HTMLInputElement,
+) {
+  githubOAuthStatus.className = "oauth-status not-authenticated";
+  githubOAuthStatus.textContent = "Not signed in with GitHub";
+  githubOAuthBtn.style.display = "inline-block";
+  githubLogoutBtn.style.display = "none";
+  githubTokenInput.disabled = false;
+  githubTokenInput.placeholder = "Enter your GitHub token";
+}
+
+/**
+ * GitHub OAuth ログイン処理
+ */
+async function handleGitHubOAuthLogin(
+  githubOAuthStatus: HTMLDivElement,
+  githubOAuthBtn: HTMLButtonElement,
+  githubLogoutBtn: HTMLButtonElement,
+  githubTokenInput: HTMLInputElement,
+  messageSpan: HTMLSpanElement,
+) {
+  githubOAuthBtn.disabled = true;
+  githubOAuthBtn.textContent = "Signing in...";
+
+  const result = await startGitHubOAuth();
+
+  result.match(
+    () => {
+      showMessage(messageSpan, "GitHub authentication successful!", "success");
+      updateGitHubOAuthStatus(
+        githubOAuthStatus,
+        githubOAuthBtn,
+        githubLogoutBtn,
+        githubTokenInput,
+      );
+    },
+    (error) => {
+      showMessage(messageSpan, error.message, "error");
+    },
+  );
+
+  githubOAuthBtn.disabled = false;
+  githubOAuthBtn.textContent = "Sign in with GitHub";
+}
+
+/**
+ * GitHub OAuth ログアウト処理
+ */
+async function handleGitHubOAuthLogout(
+  githubOAuthStatus: HTMLDivElement,
+  githubOAuthBtn: HTMLButtonElement,
+  githubLogoutBtn: HTMLButtonElement,
+  githubTokenInput: HTMLInputElement,
+  messageSpan: HTMLSpanElement,
+) {
+  const result = await clearGitHubOAuthToken();
+
+  result.match(
+    () => {
+      showMessage(messageSpan, "Signed out from GitHub", "success");
+      updateGitHubOAuthStatus(
+        githubOAuthStatus,
+        githubOAuthBtn,
+        githubLogoutBtn,
+        githubTokenInput,
+      );
+    },
+    (error) => {
+      showMessage(messageSpan, error.message, "error");
+    },
+  );
+}
+
+/**
  * 初期化
  */
 document.addEventListener("DOMContentLoaded", () => {
@@ -315,10 +636,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const {
     netlifyTokenInput,
+    netlifyOAuthBtn,
+    netlifyLogoutBtn,
+    netlifyOAuthStatus,
     vercelTokenInput,
     cloudflareAccountIdInput,
     cloudflareTokenInput,
     githubTokenInput,
+    githubOAuthBtn,
+    githubLogoutBtn,
+    githubOAuthStatus,
     saveButton,
     messageSpan,
     providerRadios,
@@ -340,6 +667,22 @@ document.addEventListener("DOMContentLoaded", () => {
     themeRadioItems,
   );
 
+  // Netlify OAuth 状態を読み込み
+  updateNetlifyOAuthStatus(
+    netlifyOAuthStatus,
+    netlifyOAuthBtn,
+    netlifyLogoutBtn,
+    netlifyTokenInput,
+  );
+
+  // GitHub OAuth 状態を読み込み
+  updateGitHubOAuthStatus(
+    githubOAuthStatus,
+    githubOAuthBtn,
+    githubLogoutBtn,
+    githubTokenInput,
+  );
+
   // プロバイダーラジオボタンの変更イベント
   for (const radio of providerRadios) {
     radio.addEventListener("change", () => {
@@ -353,6 +696,50 @@ document.addEventListener("DOMContentLoaded", () => {
       updateSelectedStyles(themeRadioItems, radio.value, "theme");
     });
   }
+
+  // Netlify OAuth ログインボタン
+  netlifyOAuthBtn.addEventListener("click", () => {
+    handleNetlifyOAuthLogin(
+      netlifyOAuthStatus,
+      netlifyOAuthBtn,
+      netlifyLogoutBtn,
+      netlifyTokenInput,
+      messageSpan,
+    );
+  });
+
+  // Netlify OAuth ログアウトボタン
+  netlifyLogoutBtn.addEventListener("click", () => {
+    handleNetlifyOAuthLogout(
+      netlifyOAuthStatus,
+      netlifyOAuthBtn,
+      netlifyLogoutBtn,
+      netlifyTokenInput,
+      messageSpan,
+    );
+  });
+
+  // GitHub OAuth ログインボタン
+  githubOAuthBtn.addEventListener("click", () => {
+    handleGitHubOAuthLogin(
+      githubOAuthStatus,
+      githubOAuthBtn,
+      githubLogoutBtn,
+      githubTokenInput,
+      messageSpan,
+    );
+  });
+
+  // GitHub OAuth ログアウトボタン
+  githubLogoutBtn.addEventListener("click", () => {
+    handleGitHubOAuthLogout(
+      githubOAuthStatus,
+      githubOAuthBtn,
+      githubLogoutBtn,
+      githubTokenInput,
+      messageSpan,
+    );
+  });
 
   // 保存ボタンのクリックイベント
   saveButton.addEventListener("click", () => {

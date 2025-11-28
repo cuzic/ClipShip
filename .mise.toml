@@ -1,5 +1,9 @@
 [tools]
 bun = "latest"
+"npm:netlify-cli" = "latest"
+
+[env]
+_.path = ["bin"]
 
 [tasks.dev]
 run = "bun run dev"
@@ -21,3 +25,15 @@ run = "bun run package"
 
 [tasks.publish]
 run = "bun run publish:chrome"
+
+[tasks.netlify-dev]
+description = "Run Netlify Functions locally"
+run = "netlify dev"
+
+[tasks.netlify-deploy]
+description = "Deploy Netlify Functions to production"
+run = "netlify deploy --prod"
+
+[tasks.netlify-deploy-preview]
+description = "Deploy Netlify Functions to preview"
+run = "netlify deploy"

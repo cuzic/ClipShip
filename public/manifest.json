@@ -3,12 +3,13 @@
   "name": "ClipShip",
   "version": "1.0.0",
   "description": "One-click deploy clipboard to Netlify, Vercel, Cloudflare Pages, or Gist",
-  "permissions": ["clipboardRead", "storage", "tabs"],
+  "permissions": ["clipboardRead", "storage", "tabs", "identity"],
   "host_permissions": [
     "https://api.netlify.com/*",
     "https://api.github.com/*",
     "https://api.vercel.com/*",
-    "https://api.cloudflare.com/*"
+    "https://api.cloudflare.com/*",
+    "https://clipship-oauth.netlify.app/*"
   ],
   "icons": {
     "16": "icon16.png",
