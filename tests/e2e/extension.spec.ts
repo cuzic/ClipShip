@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXTENSION_PATH = path.join(__dirname, "../../dist");
 
-test.describe("ClipShip Extension", () => {
+test.describe("PasteHost Extension", () => {
   let context: BrowserContext;
 
   test.beforeAll(async () => {
@@ -100,7 +100,7 @@ test.describe("ClipShip Extension", () => {
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
 
     // オプションページの要素を確認
-    await expect(optionsPage.locator("h1")).toHaveText("ClipShip Settings");
+    await expect(optionsPage.locator("h1")).toHaveText("PasteHost Settings");
     await expect(optionsPage.locator("#netlifyToken")).toBeVisible();
     await expect(optionsPage.locator("#githubToken")).toBeVisible();
     await expect(optionsPage.locator("#save")).toBeVisible();

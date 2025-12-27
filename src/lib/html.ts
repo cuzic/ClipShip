@@ -43,7 +43,7 @@ function processHtml(content: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClipShip Page</title>
+<title>PasteHost Page</title>
 </head>
 <body>
 ${content}
@@ -53,12 +53,12 @@ ${content}
 
 /**
  * highlight.js CDN (シンタックスハイライト)
- * common bundle を使用（37言語を含む、個別読み込みより効率的）
+ * 全言語対応版（190+言語）を使用
  * https://highlightjs.org/download
  */
 const HIGHLIGHT_JS_CDN = `
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/highlight.min.js"></script>
 <script>hljs.highlightAll();</script>
 `;
 
@@ -149,6 +149,9 @@ const DEFAULT_STYLES = `
   .mermaid {
     text-align: center;
     margin: 20px 0;
+    background: #fff;
+    padding: 16px;
+    border-radius: 6px;
   }
   /* Task list styles */
   .task-list-item {
@@ -209,6 +212,26 @@ const GITHUB_EXTRA_STYLES = `
 `;
 
 /**
+ * ダークテーマ用の Mermaid スタイル
+ */
+const MERMAID_DARK_STYLES = `
+<style>
+  .mermaid {
+    background: #1e1e1e;
+    padding: 16px;
+    border-radius: 6px;
+  }
+</style>
+`;
+
+/**
+ * ダークテーマかどうか判定
+ */
+function isDarkTheme(theme: CssTheme): boolean {
+  return theme === "github-dark" || theme === "water-dark";
+}
+
+/**
  * テーマに応じたスタイルを取得
  */
 function getThemeStyles(theme: CssTheme): string {
@@ -224,14 +247,18 @@ function getThemeStyles(theme: CssTheme): string {
 }
 
 /**
- * Mermaid.js CDN スクリプト
+ * Mermaid.js CDN スクリプトを生成
+ * ダークテーマの場合は Mermaid の dark テーマを使用
  */
-const MERMAID_SCRIPT = `
+function getMermaidScript(isDark: boolean): string {
+  const mermaidTheme = isDark ? "dark" : "default";
+  return `
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+  mermaid.initialize({ startOnLoad: true, theme: '${mermaidTheme}' });
 </script>
 `;
+}
 
 /**
  * Mermaid 図のキーワード（言語ラベルがなくても検出）
@@ -353,12 +380,14 @@ function createMermaidMarkdownIt() {
  */
 function processMarkdown(content: string, theme: CssTheme = "default"): string {
   const hasMermaid = containsMermaid(content);
+  const isDark = isDarkTheme(theme);
 
   // Mermaid がある場合は専用の markdown-it インスタンスを使用
   const md = hasMermaid ? createMermaidMarkdownIt() : createMarkdownIt();
   const htmlContent = md.render(content);
 
-  const mermaidScript = hasMermaid ? MERMAID_SCRIPT : "";
+  const mermaidScript = hasMermaid ? getMermaidScript(isDark) : "";
+  const mermaidStyles = hasMermaid && isDark ? MERMAID_DARK_STYLES : "";
   const themeStyles = getThemeStyles(theme);
   const wrappedContent = wrapContent(htmlContent, theme);
 
@@ -367,9 +396,10 @@ function processMarkdown(content: string, theme: CssTheme = "default"): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClipShip Page</title>
+<title>PasteHost Page</title>
 ${KATEX_CDN}
 ${themeStyles}
+${mermaidStyles}
 </head>
 <body>
 ${wrappedContent}
@@ -392,7 +422,7 @@ function processText(content: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClipShip Page</title>
+<title>PasteHost Page</title>
 <style>
   body {
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -405,6 +435,102 @@ function processText(content: string): string {
 </head>
 <body>
 <pre>${escaped}</pre>
+</body>
+</html>`;
+}
+
+/**
+ * 目次ページのエントリ型
+ */
+export interface TocEntry {
+  title: string;
+  url: string;
+}
+
+/**
+ * 目次ページの HTML を生成
+ */
+export function generateTocHtml(title: string, entries: TocEntry[]): string {
+  const escapedTitle = title
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const listItems = entries
+    .map((entry) => {
+      const escapedEntryTitle = entry.title
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const escapedUrl = entry.url
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;");
+      return `    <li><a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedEntryTitle}</a></li>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapedTitle}</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    line-height: 1.8;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    color: #333;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #eee;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  li {
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+  }
+  li:hover {
+    background: #e9ecef;
+  }
+  a {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 16px;
+    display: block;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<h1>${escapedTitle}</h1>
+<ul>
+${listItems}
+</ul>
+<div class="footer">Generated by PasteHost</div>
 </body>
 </html>`;
 }

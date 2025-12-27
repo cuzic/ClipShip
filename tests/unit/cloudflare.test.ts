@@ -13,17 +13,17 @@ describe("CloudflarePagesProjectSchema", () => {
   test("有効な Cloudflare Pages プロジェクトをパース", () => {
     const response = {
       id: "proj-123abc",
-      name: "clipship-xyz789",
-      subdomain: "clipship-xyz789",
-      domains: ["clipship-xyz789.pages.dev"],
+      name: "pastehost-xyz789",
+      subdomain: "pastehost-xyz789",
+      domains: ["pastehost-xyz789.pages.dev"],
       created_on: "2024-01-01T00:00:00Z",
       production_branch: "main",
     };
 
     const result = CloudflarePagesProjectSchema.parse(response);
     expect(result.id).toBe("proj-123abc");
-    expect(result.name).toBe("clipship-xyz789");
-    expect(result.subdomain).toBe("clipship-xyz789");
+    expect(result.name).toBe("pastehost-xyz789");
+    expect(result.subdomain).toBe("pastehost-xyz789");
   });
 
   test("最小限のフィールドでパース", () => {
@@ -58,14 +58,14 @@ describe("CloudflarePagesProjectResponseSchema", () => {
       messages: [],
       result: {
         id: "proj-123",
-        name: "clipship-xyz",
-        subdomain: "clipship-xyz",
+        name: "pastehost-xyz",
+        subdomain: "pastehost-xyz",
       },
     };
 
     const result = CloudflarePagesProjectResponseSchema.parse(response);
     expect(result.success).toBe(true);
-    expect(result.result.name).toBe("clipship-xyz");
+    expect(result.result.name).toBe("pastehost-xyz");
   });
 
   test("エラーレスポンスをパース", () => {
@@ -125,17 +125,17 @@ describe("CloudflarePagesDeploymentResponseSchema", () => {
       messages: [],
       result: {
         id: "deploy-123",
-        url: "https://abc123.clipship-xyz.pages.dev",
+        url: "https://abc123.pastehost-xyz.pages.dev",
         environment: "production",
         project_id: "proj-123",
-        project_name: "clipship-xyz",
+        project_name: "pastehost-xyz",
       },
     };
 
     const result = CloudflarePagesDeploymentResponseSchema.parse(response);
     expect(result.success).toBe(true);
     expect(result.result.id).toBe("deploy-123");
-    expect(result.result.url).toBe("https://abc123.clipship-xyz.pages.dev");
+    expect(result.result.url).toBe("https://abc123.pastehost-xyz.pages.dev");
   });
 
   test("最小限のデプロイメントレスポンスをパース", () => {

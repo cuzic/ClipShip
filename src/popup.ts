@@ -6,7 +6,7 @@
 import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { deployToCloudflare } from "./lib/cloudflare";
 import { type ContentType, detectContentType } from "./lib/detect";
-import type { DeployError } from "./lib/errors";
+import { ClipboardError, type DeployError } from "./lib/errors";
 import { deployToGist } from "./lib/gist";
 import { deployToNetlify } from "./lib/netlify";
 import {
@@ -104,16 +104,6 @@ interface DeployResult {
 }
 
 /**
- * クリップボードエラー
- */
-class ClipboardError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ClipboardError";
-  }
-}
-
-/**
  * 認証エラー
  */
 class CredentialError extends Error {
@@ -131,15 +121,12 @@ type PopupError = DeployError | ClipboardError | CredentialError;
 function getClipboardText(): ResultAsync<string, ClipboardError> {
   return okAsync(undefined)
     .andThen(() =>
-      ResultAsync.fromPromise(
-        navigator.clipboard.readText(),
-        () => new ClipboardError("Failed to read clipboard"),
+      ResultAsync.fromPromise(navigator.clipboard.readText(), () =>
+        ClipboardError.readFailed(),
       ),
     )
     .andThen((text) =>
-      text
-        ? okAsync(text)
-        : errAsync(new ClipboardError("Clipboard is empty.")),
+      text ? okAsync(text) : errAsync(ClipboardError.empty()),
     );
 }
 
@@ -182,12 +169,17 @@ const DEPLOY_CONFIGS: Record<DeployProvider, DeployConfig> = {
   },
   vercel: {
     getCredentials: () =>
-      ResultAsync.fromSafePromise(getStorageData("vercelToken")).andThen(
-        (token) =>
-          token
-            ? okAsync({ token })
-            : errAsync(new CredentialError("Vercel Token not set in Options.")),
-      ),
+      ResultAsync.fromSafePromise(
+        Promise.all([
+          getStorageData("vercelOAuthToken"),
+          getStorageData("vercelToken"),
+        ]),
+      ).andThen(([oauthToken, manualToken]) => {
+        const token = oauthToken || manualToken;
+        return token
+          ? okAsync({ token })
+          : errAsync(new CredentialError("Vercel Token not set in Options."));
+      }),
     deploy: (token, _accountId, text, onProgress, theme) =>
       deployToVercel(token, text, onProgress, theme).map((r) => r.deployUrl),
   },

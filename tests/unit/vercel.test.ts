@@ -8,7 +8,7 @@ describe("VercelProjectSchema", () => {
   test("有効な Vercel プロジェクトレスポンスをパース", () => {
     const response = {
       id: "prj_123abc",
-      name: "clipship-xyz789",
+      name: "pastehost-xyz789",
       accountId: "acc_456def",
       link: {
         type: "github",
@@ -17,7 +17,7 @@ describe("VercelProjectSchema", () => {
 
     const result = VercelProjectSchema.parse(response);
     expect(result.id).toBe("prj_123abc");
-    expect(result.name).toBe("clipship-xyz789");
+    expect(result.name).toBe("pastehost-xyz789");
     expect(result.accountId).toBe("acc_456def");
   });
 
@@ -49,8 +49,8 @@ describe("VercelDeploymentSchema", () => {
   test("有効な Vercel デプロイメントレスポンスをパース", () => {
     const response = {
       id: "dpl_abc123",
-      url: "clipship-xyz789-abc123.vercel.app",
-      name: "clipship-xyz789",
+      url: "pastehost-xyz789-abc123.vercel.app",
+      name: "pastehost-xyz789",
       state: "READY",
       readyState: "READY",
       createdAt: 1699999999999,
@@ -58,8 +58,8 @@ describe("VercelDeploymentSchema", () => {
 
     const result = VercelDeploymentSchema.parse(response);
     expect(result.id).toBe("dpl_abc123");
-    expect(result.url).toBe("clipship-xyz789-abc123.vercel.app");
-    expect(result.name).toBe("clipship-xyz789");
+    expect(result.url).toBe("pastehost-xyz789-abc123.vercel.app");
+    expect(result.name).toBe("pastehost-xyz789");
     expect(result.state).toBe("READY");
   });
 

@@ -33,11 +33,11 @@ describe("processContent", () => {
       expect(result.content).toContain(content);
     });
 
-    test("should have ClipShip Page as title", () => {
+    test("should have PasteHost Page as title", () => {
       const content = "<div>test</div>";
       const result = processContent(content);
 
-      expect(result.content).toContain("<title>ClipShip Page</title>");
+      expect(result.content).toContain("<title>PasteHost Page</title>");
     });
   });
 

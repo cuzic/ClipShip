@@ -71,23 +71,6 @@ export class ValidationError extends AppError {
 }
 
 /**
- * ネットワークエラー
- * - 接続失敗
- * - タイムアウト
- */
-export class NetworkError extends AppError {
-  readonly code = "NETWORK_ERROR";
-
-  static connectionFailed(): NetworkError {
-    return new NetworkError("Network connection failed.");
-  }
-
-  static timeout(): NetworkError {
-    return new NetworkError("Request timed out.");
-  }
-}
-
-/**
  * API エラー
  * - サーバーエラー
  * - 予期しないエラー
@@ -139,13 +122,5 @@ export type DeployError =
   | AuthenticationError
   | PermissionError
   | ValidationError
-  | NetworkError
   | ApiError
   | ClipboardError;
-
-/**
- * エラーがAppErrorかどうかを判定
- */
-export function isAppError(error: unknown): error is AppError {
-  return error instanceof AppError;
-}

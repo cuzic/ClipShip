@@ -8,19 +8,19 @@ describe("NetlifySiteSchema", () => {
   test("有効な Netlify サイトレスポンスをパース", () => {
     const response = {
       id: "site-123",
-      name: "clipship-abc123",
-      url: "https://clipship-abc123.netlify.app",
-      ssl_url: "https://clipship-abc123.netlify.app",
-      admin_url: "https://app.netlify.com/sites/clipship-abc123",
+      name: "pastehost-abc123",
+      url: "https://pastehost-abc123.netlify.app",
+      ssl_url: "https://pastehost-abc123.netlify.app",
+      admin_url: "https://app.netlify.com/sites/pastehost-abc123",
     };
 
     const result = NetlifySiteSchema.parse(response);
     expect(result.id).toBe("site-123");
-    expect(result.name).toBe("clipship-abc123");
-    expect(result.url).toBe("https://clipship-abc123.netlify.app");
-    expect(result.ssl_url).toBe("https://clipship-abc123.netlify.app");
+    expect(result.name).toBe("pastehost-abc123");
+    expect(result.url).toBe("https://pastehost-abc123.netlify.app");
+    expect(result.ssl_url).toBe("https://pastehost-abc123.netlify.app");
     expect(result.admin_url).toBe(
-      "https://app.netlify.com/sites/clipship-abc123",
+      "https://app.netlify.com/sites/pastehost-abc123",
     );
   });
 
