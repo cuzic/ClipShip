@@ -1,4 +1,4 @@
-# ClipShip 技術スタック仕様書
+# PasteHost 技術スタック仕様書
 
 ## 概要
 
@@ -64,7 +64,7 @@
 ## ディレクトリ構成
 
 ```
-clipship/
+pastehost/
 ├── .mise.toml
 ├── bun.lock
 ├── package.json
@@ -131,7 +131,7 @@ run = "bun run publish:chrome"
 
 ```json
 {
-  "name": "clipship",
+  "name": "pastehost",
   "version": "1.0.0",
   "type": "module",
   "scripts": {

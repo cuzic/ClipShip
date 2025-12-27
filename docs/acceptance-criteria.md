@@ -1,8 +1,8 @@
-# ClipShip 受入条件チェックリスト
+# PasteHost 受入条件チェックリスト
 
 ## 概要
 
-本ドキュメントは、ClipShip の各ユーザーストーリーに対する受入条件をチェックリスト形式でまとめたものである。
+本ドキュメントは、PasteHost の各ユーザーストーリーに対する受入条件をチェックリスト形式でまとめたものである。
 
 ---
 
@@ -17,10 +17,10 @@
 - [ ] Chrome Web Store にアクセスできる
 
 #### 受入条件
-- [ ] Chrome Web Store で「ClipShip」を検索すると拡張機能が表示される
+- [ ] Chrome Web Store で「PasteHost」を検索すると拡張機能が表示される
 - [ ] 「Chromeに追加」ボタンをクリックするとインストールが開始される
 - [ ] インストール確認ダイアログが表示される
-- [ ] インストール完了後、ツールバーに ClipShip アイコンが表示される
+- [ ] インストール完了後、ツールバーに PasteHost アイコンが表示される
 - [ ] アイコンをクリックするとポップアップが表示される
 
 ---
@@ -28,7 +28,7 @@
 ### US-1.2: Netlify トークンの設定
 
 #### 前提条件
-- [ ] ClipShip がインストールされている
+- [ ] PasteHost がインストールされている
 - [ ] Netlify アカウントを持っている
 - [ ] Netlify Personal Access Token を取得済み
 
@@ -47,7 +47,7 @@
 ### US-1.3: GitHub トークンの設定
 
 #### 前提条件
-- [ ] ClipShip がインストールされている
+- [ ] PasteHost がインストールされている
 - [ ] GitHub アカウントを持っている
 - [ ] GitHub Personal Access Token（gist スコープ）を取得済み
 
@@ -152,7 +152,7 @@
 
 **Gist設定**
 - [ ] Gist は `public: true` で作成される
-- [ ] Gist の description は「Deployed via ClipShip」となる
+- [ ] Gist の description は「Deployed via PasteHost」となる
 - [ ] ファイル名は `index.html` となる
 
 **URL変換**
@@ -294,7 +294,7 @@
 
 **パッケージング**
 - [ ] `bun run package` で ZIP ファイルが生成される
-- [ ] ZIP ファイル名は `dist.zip` または `clipship-x.x.x.zip`
+- [ ] ZIP ファイル名は `dist.zip` または `pastehost-x.x.x.zip`
 - [ ] ZIP に以下のファイルが含まれる
   - [ ] `manifest.json`
   - [ ] `popup.html`

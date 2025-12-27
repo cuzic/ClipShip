@@ -2,7 +2,7 @@
 
 ## 概要
 
-ClipShip では、クリップボードのHTMLコードをNetlifyに即座にデプロイするために Netlify API を使用する。
+PasteHost では、クリップボードのHTMLコードをNetlifyに即座にデプロイするために Netlify API を使用する。
 
 ## 認証
 
@@ -20,7 +20,7 @@ Authorization: Bearer <YOUR_PERSONAL_ACCESS_TOKEN>
 
 ### 新規サイト作成 + ZIPデプロイ（推奨）
 
-ClipShip では、1回のリクエストでサイト作成とデプロイを同時に行う。
+PasteHost では、1回のリクエストでサイト作成とデプロイを同時に行う。
 
 ```
 POST https://api.netlify.com/api/v1/sites
@@ -70,7 +70,7 @@ curl -X POST \
 }
 ```
 
-**ClipShip で使用するフィールド:**
+**PasteHost で使用するフィールド:**
 - `url` または `ssl_url`: 公開URL（ユーザーに表示・コピー）
 
 ### 既存サイトへのデプロイ
@@ -115,7 +115,7 @@ website.zip
 └── index.html
 ```
 
-ClipShip では `index.html` のみを含むZIPを生成する。
+PasteHost では `index.html` のみを含むZIPを生成する。
 
 ## デプロイ状態
 

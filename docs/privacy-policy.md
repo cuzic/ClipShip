@@ -1,16 +1,16 @@
-# Privacy Policy for ClipShip
+# Privacy Policy for PasteHost
 
 *Last updated: 2024*
 
 ## Overview
 
-ClipShip is a Chrome extension that deploys clipboard content to Netlify or GitHub Gist. This privacy policy explains how we handle your data.
+PasteHost is a Chrome extension that deploys clipboard content to Netlify or GitHub Gist. This privacy policy explains how we handle your data.
 
 ## Data Collection
 
 ### What We Collect
 
-ClipShip does **NOT** collect, store, or transmit any personal data to our servers. We do not have any servers or analytics.
+PasteHost does **NOT** collect, store, or transmit any personal data to our servers. We do not have any servers or analytics.
 
 ### Data Stored Locally
 
@@ -20,7 +20,7 @@ The following data is stored locally in your browser using Chrome's sync storage
 |------|---------|---------|
 | Netlify Personal Access Token | Authenticate with Netlify API | Chrome sync storage |
 | GitHub Personal Access Token | Authenticate with GitHub API | Chrome sync storage |
-| Netlify Site ID | Remember your ClipShip site | Chrome sync storage |
+| Netlify Site ID | Remember your PasteHost site | Chrome sync storage |
 
 This data is:
 - Stored only in your browser
@@ -30,14 +30,14 @@ This data is:
 
 ### Clipboard Data
 
-When you click the deploy button, ClipShip reads your clipboard content. This content is:
+When you click the deploy button, PasteHost reads your clipboard content. This content is:
 - Sent directly to Netlify or GitHub APIs for deployment
 - Never stored locally beyond the deployment process
 - Never sent to any other third party
 
 ## Third-Party Services
 
-ClipShip integrates with the following services:
+PasteHost integrates with the following services:
 
 ### Netlify
 
@@ -88,7 +88,7 @@ You can:
 
 ## Children's Privacy
 
-ClipShip does not knowingly collect any personal information from children under 13 years of age.
+PasteHost does not knowingly collect any personal information from children under 13 years of age.
 
 ## Changes to This Policy
 
@@ -96,8 +96,8 @@ We may update this privacy policy from time to time. Changes will be reflected i
 
 ## Open Source
 
-ClipShip is open source. You can review the code to verify our privacy practices:
-https://github.com/[your-username]/clipship
+PasteHost is open source. You can review the code to verify our privacy practices:
+https://github.com/[your-username]/pastehost
 
 ## Contact
 

@@ -5,7 +5,7 @@
 ### 拡張機能名
 
 ```
-ClipShip
+PasteHost
 ```
 
 ### 短い説明 (132文字以内)
@@ -17,9 +17,9 @@ One-click deploy clipboard to Netlify, Vercel, Cloudflare Pages, or Gist. Suppor
 ### 詳細説明
 
 ```
-ClipShip - Instant Clipboard Deployment
+PasteHost - Instant Clipboard Deployment
 
-Turn your clipboard into a live webpage in seconds! ClipShip is a developer-friendly Chrome extension that deploys your clipboard content with just one click.
+Turn your clipboard into a live webpage in seconds! PasteHost is a developer-friendly Chrome extension that deploys your clipboard content with just one click.
 
 🚀 FEATURES
 
@@ -83,7 +83,7 @@ JavaScript, TypeScript, Python, Java, SQL, Bash, JSON, YAML, XML, CSS, Go, Rust,
 - Your API tokens are stored securely in Chrome's sync storage
 - No data is collected or sent to third parties
 - HTML in Markdown is sanitized to prevent XSS attacks
-- Open source: https://github.com/user/clipship
+- Open source: https://github.com/user/pastehost
 
 ⚙️ SETUP
 
@@ -145,7 +145,7 @@ This extension creates a new tab to open the deployed URL after successful deplo
 
 ```
 This extension calls Netlify's API to create and manage deployments. It needs to:
-1. Create/find the ClipShip site on user's Netlify account
+1. Create/find the PasteHost site on user's Netlify account
 2. Create deployments using the File Digest API
 3. Upload files to the deployment
 4. Poll deployment status until ready
@@ -161,7 +161,7 @@ This extension calls GitHub's Gist API to create public gists. It needs to creat
 
 ```
 This extension calls Vercel's API to create deployments. It needs to:
-1. Create/find the ClipShip project on user's Vercel account
+1. Create/find the PasteHost project on user's Vercel account
 2. Create deployments with inline file upload
 3. Get deployment URL for sharing
 ```
@@ -170,7 +170,7 @@ This extension calls Vercel's API to create deployments. It needs to:
 
 ```
 This extension calls Cloudflare's Pages API to create deployments. It needs to:
-1. Create/find the ClipShip project on user's Cloudflare account
+1. Create/find the PasteHost project on user's Cloudflare account
 2. Upload files using the Direct Upload API with manifest
 3. Get deployment URL for sharing
 ```

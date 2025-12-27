@@ -1,7 +1,7 @@
 # OAuth セットアップガイド
 
-ClipShip の OAuth 認証を使用するためのセットアップ手順です。
-GitHub Gist と Netlify の両方で OAuth 認証が利用可能です。
+PasteHost の OAuth 認証を使用するためのセットアップ手順です。
+GitHub Gist と Netlify で OAuth 認証が利用可能です。
 
 ## 前提条件
 
@@ -21,7 +21,7 @@ mise install
 netlify login
 
 # 新規サイト作成
-netlify sites:create --name clipship-oauth
+netlify sites:create --name pastehost-oauth
 ```
 
 ## 2. GitHub OAuth App の作成
@@ -29,9 +29,9 @@ netlify sites:create --name clipship-oauth
 1. [GitHub Developer Settings](https://github.com/settings/developers) にアクセス
 2. 「OAuth Apps」→「New OAuth App」をクリック
 3. 以下の情報を入力:
-   - **Application name**: `ClipShip`
-   - **Homepage URL**: `https://github.com/your-username/ClipShip`
-   - **Authorization callback URL**: `https://clipship-oauth.netlify.app/api/github-callback`
+   - **Application name**: `PasteHost`
+   - **Homepage URL**: `https://github.com/your-username/PasteHost`
+   - **Authorization callback URL**: `https://pastehost-oauth.netlify.app/api/github-callback`
 4. 「Register application」をクリック
 5. **Client ID** をメモ
 6. 「Generate a new client secret」をクリックして **Client Secret** をメモ
@@ -41,8 +41,8 @@ netlify sites:create --name clipship-oauth
 1. [Netlify OAuth Applications](https://app.netlify.com/user/applications) にアクセス
 2. 「OAuth」タブ →「New OAuth App」をクリック
 3. 以下の情報を入力:
-   - **Application name**: `ClipShip`
-   - **Redirect URI**: `https://clipship-oauth.netlify.app/api/netlify-oauth-callback`
+   - **Application name**: `PasteHost`
+   - **Redirect URI**: `https://pastehost-oauth.netlify.app/api/netlify-oauth-callback`
 4. 「Save」をクリック
 5. **Client ID** と **Secret** をメモ
 
@@ -79,7 +79,7 @@ mise run netlify-deploy
 `src/lib/github-oauth.ts` と `src/lib/netlify-oauth.ts` の `OAUTH_BASE_URL` を実際のサイト URL に更新:
 
 ```typescript
-const OAUTH_BASE_URL = "https://clipship-oauth.netlify.app";
+const OAUTH_BASE_URL = "https://pastehost-oauth.netlify.app";
 ```
 
 ## 7. 動作確認
@@ -156,7 +156,7 @@ GitHub Developer Settings または Netlify OAuth Applications で callback URL 
 {
   "permissions": ["identity", ...],
   "host_permissions": [
-    "https://clipship-oauth.netlify.app/*"
+    "https://pastehost-oauth.netlify.app/*"
   ]
 }
 ```

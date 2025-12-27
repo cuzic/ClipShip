@@ -1,8 +1,8 @@
-# ClipShip ユーザーストーリー
+# PasteHost ユーザーストーリー
 
 ## 概要
 
-ClipShip は、クリップボードのHTMLコードを即座にWebにデプロイし、公開URLを取得するChrome拡張機能である。
+PasteHost は、クリップボードのHTMLコードを即座にWebにデプロイし、公開URLを取得するChrome拡張機能である。
 
 ---
 
@@ -22,12 +22,12 @@ ClipShip は、クリップボードのHTMLコードを即座にWebにデプロ�
 
 ```
 As a ユーザー
-I want to Chrome Web Store から ClipShip をインストールする
+I want to Chrome Web Store から PasteHost をインストールする
 So that クリップボードからのデプロイ機能を使えるようになる
 ```
 
 **受け入れ条件:**
-- [ ] Chrome Web Store で「ClipShip」を検索できる
+- [ ] Chrome Web Store で「PasteHost」を検索できる
 - [ ] ワンクリックでインストールできる
 - [ ] インストール後、ツールバーにアイコンが表示される
 

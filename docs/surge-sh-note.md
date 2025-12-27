@@ -43,12 +43,12 @@ var surge = require('surge')({ default: 'publish' });
 surge(['--project', './dist', '--domain', 'example.surge.sh']);
 ```
 
-## ClipShip への適用
+## PasteHost への適用
 
 ブラウザ拡張機能から Surge.sh にデプロイするには:
 - REST API が必要だが、存在しない
 - CLI は Node.js 環境が必要
-- **結論: ClipShip では Surge.sh をサポートできない**
+- **結論: PasteHost では Surge.sh をサポートできない**
 
 ## 代替サービス
 - Netlify (REST API あり) ✓

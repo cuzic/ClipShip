@@ -2,7 +2,7 @@
 
 ## 概要
 
-ClipShip では、クリップボードのHTMLコードをGitHub Gistに保存し、GistHack経由でHTMLとしてレンダリングするために GitHub Gist API を使用する。
+PasteHost では、クリップボードのHTMLコードをGitHub Gistに保存し、GistHack経由でHTMLとしてレンダリングするために GitHub Gist API を使用する。
 
 ## 認証
 
@@ -49,7 +49,7 @@ Content-Type: application/json
 **Body:**
 ```json
 {
-  "description": "Deployed via ClipShip",
+  "description": "Deployed via PasteHost",
   "public": true,
   "files": {
     "index.html": {
@@ -77,7 +77,7 @@ curl -X POST \
   -H "Accept: application/vnd.github.v3+json" \
   -H "Content-Type: application/json" \
   -d '{
-    "description": "Deployed via ClipShip",
+    "description": "Deployed via PasteHost",
     "public": true,
     "files": {
       "index.html": {
@@ -111,7 +111,7 @@ curl -X POST \
   "public": true,
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z",
-  "description": "Deployed via ClipShip",
+  "description": "Deployed via PasteHost",
   "owner": {
     "login": "username",
     "id": 12345
@@ -119,7 +119,7 @@ curl -X POST \
 }
 ```
 
-**ClipShip で使用するフィールド:**
+**PasteHost で使用するフィールド:**
 - `files["index.html"].raw_url`: GistHack URLへの変換元
 
 ## raw_url の構造
