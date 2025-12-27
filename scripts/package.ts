@@ -13,7 +13,7 @@ async function main() {
     readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"),
   );
   const version = packageJson.version;
-  const outputPath = join(import.meta.dir, "..", `clipship-${version}.zip`);
+  const outputPath = join(import.meta.dir, "..", `pastehost-${version}.zip`);
 
   console.log(`Packaging dist/ to ${outputPath}...`);
 

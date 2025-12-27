@@ -54,7 +54,7 @@ type GistResponse = z.infer<typeof GistResponseSchema>;
 async function createGist(
   token: string,
   html: string,
-  description = "Deployed via ClipShip"
+  description = "Deployed via PasteHost"
 ): Promise<GistResponse> {
   const response = await ky
     .post("https://api.github.com/gists", {

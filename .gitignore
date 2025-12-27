@@ -11,7 +11,7 @@ test-results/
 bun.lock
 
 # Package output
-clipship-*.zip
+pastehost-*.zip
 
 # OS files
 .DS_Store
@@ -23,3 +23,6 @@ Thumbs.db
 *.swp
 *.swo
 .env
+
+# Local Netlify folder
+.netlify

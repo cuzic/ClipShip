@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ClipShip Chrome Web Store 用画像アセット生成スクリプト
+PasteHost Chrome Web Store 用画像アセット生成スクリプト
 Gemini Image Generation API を使用して画像を生成
 """
 
@@ -43,8 +43,8 @@ DEFAULT_MODEL = "gemini-3-pro"
 # 画像生成のプロンプト定義
 IMAGE_PROMPTS = {
     "icon": {
-        "title": "ClipShip アイコン (128x128)",
-        "prompt": """Create a modern app icon for "ClipShip" - a clipboard deployment tool.
+        "title": "PasteHost アイコン (128x128)",
+        "prompt": """Create a modern app icon for "PasteHost" - a clipboard deployment tool.
 
 DESIGN:
 - Square icon with rounded corners (like iOS/Android app icons)
@@ -74,7 +74,7 @@ NO TEXT - icon only.""",
     },
     "promo_small": {
         "title": "Small Promo Tile (440x280)",
-        "prompt": """Create a promotional banner for "ClipShip" Chrome extension.
+        "prompt": """Create a promotional banner for "PasteHost" Chrome extension.
 
 SIZE: 440x280 pixels (landscape)
 
@@ -83,7 +83,7 @@ BACKGROUND:
 - Subtle grid pattern overlay (tech feel)
 
 LEFT SIDE (40%):
-- Large "ClipShip" text in white, bold modern font
+- Large "PasteHost" text in white, bold modern font
 - Below: "Clipboard → Web" in smaller text
 - Small rocket emoji 🚀
 
@@ -110,7 +110,7 @@ STYLE:
     },
     "promo_large": {
         "title": "Large Promo Tile (920x680)",
-        "prompt": """Create a large promotional banner for "ClipShip" Chrome extension.
+        "prompt": """Create a large promotional banner for "PasteHost" Chrome extension.
 
 SIZE: 920x680 pixels (landscape)
 
@@ -119,7 +119,7 @@ BACKGROUND:
 - Subtle geometric patterns (hexagons, dots)
 
 HEADER (top 30%):
-- "ClipShip" logo/text - large, white, modern sans-serif font
+- "PasteHost" logo/text - large, white, modern sans-serif font
 - Tagline: "Deploy Clipboard to Web Instantly" in light blue #64B5F6
 - Small rocket icon next to logo
 
@@ -132,7 +132,7 @@ CENTER (main area, 50%):
   - Label: "Copy"
 
   STEP 2 (center):
-  - ClipShip extension popup mockup
+  - PasteHost extension popup mockup
   - Two buttons: "Netlify" and "Gist"
   - Label: "Click"
 
@@ -166,7 +166,7 @@ STYLE:
     },
     "screenshot_popup": {
         "title": "Screenshot - Popup UI (1280x800)",
-        "prompt": """Create a screenshot mockup for ClipShip Chrome extension popup.
+        "prompt": """Create a screenshot mockup for PasteHost Chrome extension popup.
 
 SIZE: 1280x800 pixels
 
@@ -177,7 +177,7 @@ BACKGROUND:
   ```markdown
   # Hello World
 
-  This is a **demo** of ClipShip.
+  This is a **demo** of PasteHost.
 
   ```javascript
   console.log('Hello!');
@@ -187,7 +187,7 @@ BACKGROUND:
 POPUP OVERLAY (center-right):
 - Chrome extension popup window (300px wide)
 - White background with shadow
-- Header: "ClipShip" with small rocket icon
+- Header: "PasteHost" with small rocket icon
 - Two large buttons:
   1. "Deploy to Netlify" - Blue button #1976D2
   2. "Deploy to Gist" - Green button #388E3C
@@ -210,13 +210,13 @@ STYLE:
     },
     "screenshot_result": {
         "title": "Screenshot - Deploy Result (1280x800)",
-        "prompt": """Create a screenshot showing ClipShip deployment result.
+        "prompt": """Create a screenshot showing PasteHost deployment result.
 
 SIZE: 1280x800 pixels
 
 MAIN CONTENT:
 - Browser window showing a deployed webpage
-- URL bar: "https://clipship-abc123.netlify.app/xyz789/index.html"
+- URL bar: "https://pastehost-abc123.netlify.app/xyz789/index.html"
 - Green lock icon (HTTPS)
 
 WEBPAGE CONTENT (rendered Markdown):
@@ -235,7 +235,7 @@ WEBPAGE CONTENT (rendered Markdown):
   - Table with data
 
 POPUP OVERLAY (bottom-right):
-- ClipShip popup showing success state:
+- PasteHost popup showing success state:
   - Green checkmark ✓
   - "Success!" text
   - URL link (clickable)
@@ -254,7 +254,7 @@ STYLE:
     },
     "screenshot_options": {
         "title": "Screenshot - Options Page (1280x800)",
-        "prompt": """Create a screenshot of ClipShip options/settings page.
+        "prompt": """Create a screenshot of PasteHost options/settings page.
 
 SIZE: 1280x800 pixels
 
@@ -264,7 +264,7 @@ BROWSER WINDOW:
 
 OPTIONS PAGE CONTENT:
 - Clean white background
-- Header: "ClipShip Settings" with gear icon
+- Header: "PasteHost Settings" with gear icon
 
 FORM SECTIONS:
 
@@ -287,7 +287,7 @@ BOTTOM:
 - "Saved!" success message with checkmark
 
 SIDEBAR INFO:
-- "About ClipShip" section
+- "About PasteHost" section
 - Version: 1.0.0
 - Links: Documentation, Report Issue, Privacy Policy
 
@@ -400,7 +400,7 @@ def create_icon_sizes(base_icon_path: Path):
 def parse_args():
     """コマンドライン引数をパース"""
     parser = argparse.ArgumentParser(
-        description="ClipShip Chrome Web Store 用画像アセット生成"
+        description="PasteHost Chrome Web Store 用画像アセット生成"
     )
     parser.add_argument(
         "-m", "--model",
@@ -437,7 +437,7 @@ def main():
     model_id = AVAILABLE_MODELS[args.model]
 
     print("=" * 60)
-    print("ClipShip 画像アセット生成スクリプト")
+    print("PasteHost 画像アセット生成スクリプト")
     print(f"モデル: {model_id}")
     print("=" * 60)
     print()
