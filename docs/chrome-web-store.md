@@ -121,6 +121,12 @@ Developer Tools
 English (United States)
 ```
 
+### プライバシーポリシー URL
+
+```
+https://github.com/cuzic/ClipShip/blob/main/docs/privacy-policy.md
+```
+
 ---
 
 ## 権限の正当化 (Permission Justifications)
@@ -248,7 +254,7 @@ python3 scripts/generate_assets.py -m gemini-2.5-flash
 
 - [x] manifest.json の permissions が最小限か確認
 - [x] 権限の正当化を準備 (このドキュメント参照)
-- [ ] プライバシーポリシー URL を用意 (`docs/privacy-policy.md` を公開)
+- [x] プライバシーポリシー URL を用意 (GitHub リポジトリに直接リンク)
 - [x] スクリーンショットを用意 (`assets/screenshot_*.png`)
 - [x] アイコン（16, 32, 48, 128px）を用意 (`public/icon*.png`)
 - [x] 小プロモーション画像（440x280）を用意 (`assets/promo_small_440x280.png`)
