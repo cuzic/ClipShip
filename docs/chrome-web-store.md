@@ -11,7 +11,7 @@ PasteHost
 ### 短い説明 (132文字以内)
 
 ```
-One-click deploy clipboard to Netlify, Vercel, Cloudflare Pages, or Gist. Supports HTML, Markdown, syntax highlighting, and Mermaid.
+One-click deploy clipboard to GitHub Gist, Netlify, Vercel, or Cloudflare. Supports HTML, Markdown, syntax highlighting, and Mermaid.
 ```
 
 ### 詳細説明
@@ -24,6 +24,8 @@ Turn your clipboard into a live webpage in seconds! PasteHost is a developer-fri
 🚀 FEATURES
 
 • One-Click Deploy - Set your default provider in Options, then deploy with a single click
+• OAuth Authentication - Sign in with GitHub or Netlify for secure token-free setup
+• Gist File Manager - View, edit, re-upload, and delete your Gist files
 • Deploy History - View past deployments, edit titles, and copy URLs
 • Smart Content Detection - Automatically detects HTML, Markdown, or plain text
 • Beautiful Markdown Rendering - Full Markdown support with GitHub-style formatting
@@ -35,10 +37,11 @@ Turn your clipboard into a live webpage in seconds! PasteHost is a developer-fri
 • Strikethrough - ~~deleted text~~ support
 • Mermaid Diagrams - Flowcharts, sequence diagrams, ER diagrams, and more
 • Four Hosting Options:
+  - GitHub Gist - Quick sharing via GistHack (Default, Recommended)
   - Netlify - Permanent hosting with custom domains
   - Vercel - Fast Edge network deployment
   - Cloudflare Pages - Global CDN hosting
-  - GitHub Gist - Quick sharing via GistHack
+• Multiple Files per Gist - Deploy up to 290 pages to a single Gist
 • Instant Sharing - URL automatically copied to clipboard and opened in new tab
 
 📝 SUPPORTED CONTENT
@@ -80,20 +83,21 @@ JavaScript, TypeScript, Python, Java, SQL, Bash, JSON, YAML, XML, CSS, Go, Rust,
 
 🔒 PRIVACY & SECURITY
 
+- OAuth authentication via secure token exchange
 - Your API tokens are stored securely in Chrome's sync storage
 - No data is collected or sent to third parties
 - HTML in Markdown is sanitized to prevent XSS attacks
-- Open source: https://github.com/user/pastehost
+- Open source: https://github.com/cuzic/ClipShip
 
 ⚙️ SETUP
 
 1. Click the extension icon and go to Options
-2. Select your default deploy provider (Netlify, Vercel, Cloudflare Pages, or GitHub Gist)
-3. Enter the required API token for your chosen provider:
-   - Netlify: Personal Access Token
-   - Vercel: Personal Access Token
-   - Cloudflare Pages: API Token + Account ID
-   - GitHub Gist: Personal Access Token with gist scope
+2. Select your default deploy provider (GitHub Gist is recommended)
+3. Authenticate with your chosen provider:
+   - GitHub Gist: Click "Sign in with GitHub" (OAuth) or enter Personal Access Token
+   - Netlify: Click "Sign in with Netlify" (OAuth) or enter Personal Access Token
+   - Vercel: Enter Personal Access Token
+   - Cloudflare Pages: Enter API Token + Account ID
 4. Copy any HTML/Markdown content to clipboard
 5. Click the Deploy button - your page is live! URL is copied and opened automatically
 
@@ -173,6 +177,21 @@ This extension calls Cloudflare's Pages API to create deployments. It needs to:
 1. Create/find the PasteHost project on user's Cloudflare account
 2. Upload files using the Direct Upload API with manifest
 3. Get deployment URL for sharing
+```
+
+### Host Permissions: https://pastehost-oauth.netlify.app/*
+
+```
+This extension uses a secure OAuth relay server hosted on Netlify for GitHub and Netlify OAuth authentication. The server:
+1. Generates signed state parameters for CSRF protection
+2. Exchanges authorization codes for access tokens
+3. Never stores tokens - they are returned directly to the extension
+```
+
+### identity
+
+```
+This extension uses Chrome's identity API (launchWebAuthFlow) to handle OAuth authentication flows for GitHub and Netlify. This allows users to securely sign in without manually creating and copying API tokens.
 ```
 
 ---
