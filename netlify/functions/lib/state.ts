@@ -3,68 +3,77 @@
  * CSRF 攻撃を防ぐため、state に署名と有効期限を付与
  */
 
+import { hmacSign } from "./crypto";
+
 // state の有効期限 (10分)
 const STATE_EXPIRY_MS = 10 * 60 * 1000;
 
 /**
- * HMAC-SHA256 で署名を生成
+ * State データの型
  */
-async function hmacSign(data: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(data);
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, messageData);
-  const hashArray = Array.from(new Uint8Array(signature));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+interface StateData {
+  timestamp: number;
+  randomId: string;
+  extensionRedirect?: string;
 }
 
 /**
  * 署名付き state を生成
- * 形式: timestamp.randomId.signature
+ * 形式: base64(JSON).signature
+ * @param secret - 署名用シークレット
+ * @param extensionRedirect - 拡張機能のリダイレクトURL（オプション）
  */
-export async function createSignedState(secret: string): Promise<string> {
-  const timestamp = Date.now().toString();
-  const randomId = crypto.randomUUID();
-  const payload = `${timestamp}.${randomId}`;
+export async function createSignedState(
+  secret: string,
+  extensionRedirect?: string,
+): Promise<string> {
+  const data: StateData = {
+    timestamp: Date.now(),
+    randomId: crypto.randomUUID(),
+    extensionRedirect,
+  };
+  const payload = btoa(JSON.stringify(data));
   const signature = await hmacSign(payload, secret);
   return `${payload}.${signature}`;
 }
 
 /**
- * 署名付き state を検証
- * @returns 有効な場合は true、無効な場合は false
+ * 署名付き state を検証し、データを返す
+ * @returns 有効な場合は StateData、無効な場合は null
  */
 export async function verifySignedState(
   state: string,
   secret: string,
-): Promise<boolean> {
-  const parts = state.split(".");
-  if (parts.length !== 3) {
-    return false;
+): Promise<StateData | null> {
+  const lastDotIndex = state.lastIndexOf(".");
+  if (lastDotIndex === -1) {
+    return null;
   }
 
-  const [timestamp, randomId, signature] = parts;
-
-  // 有効期限チェック
-  const stateTime = Number.parseInt(timestamp, 10);
-  if (Number.isNaN(stateTime)) {
-    return false;
-  }
-  if (Date.now() - stateTime > STATE_EXPIRY_MS) {
-    return false;
-  }
+  const payload = state.substring(0, lastDotIndex);
+  const signature = state.substring(lastDotIndex + 1);
 
   // 署名検証
-  const payload = `${timestamp}.${randomId}`;
   const expectedSignature = await hmacSign(payload, secret);
-  return signature === expectedSignature;
+  if (signature !== expectedSignature) {
+    return null;
+  }
+
+  // ペイロードをデコード
+  let data: StateData;
+  try {
+    data = JSON.parse(atob(payload));
+  } catch {
+    return null;
+  }
+
+  // 有効期限チェック
+  if (typeof data.timestamp !== "number") {
+    return null;
+  }
+  if (Date.now() - data.timestamp > STATE_EXPIRY_MS) {
+    return null;
+  }
+
+  return data;
 }

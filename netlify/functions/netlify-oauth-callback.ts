@@ -62,11 +62,23 @@ export default async (req: Request) => {
     );
   }
 
-  // state パラメータの署名と有効期限を検証
-  const isValidState = await verifySignedState(state, stateSecret);
-  if (!isValidState) {
+  // state パラメータの署名と有効期限を検証し、データを取得
+  const stateData = await verifySignedState(state, stateSecret);
+  if (!stateData) {
     return new Response(
       JSON.stringify({ error: "Invalid or expired state parameter" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // 拡張機能のリダイレクトURLを取得
+  const extensionRedirect = stateData.extensionRedirect;
+  if (!extensionRedirect) {
+    return new Response(
+      JSON.stringify({ error: "Missing extension_redirect in state" }),
       {
         status: 400,
         headers: { "Content-Type": "application/json" },
@@ -107,63 +119,19 @@ export default async (req: Request) => {
     );
   }
 
-  // Chrome拡張機能にトークンを返すHTMLページ
-  // chrome.identity.launchWebAuthFlow のリダイレクト先として機能
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>ClipShip - Netlify認証完了</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background: #f6f8fa;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .success {
-      color: #00ad9f;
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-    }
-    .info {
-      color: #586069;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="success">Netlify認証が完了しました</div>
-    <div class="info">このウィンドウは自動的に閉じます...</div>
-  </div>
-</body>
-</html>`;
-
   // トークン情報をURLフラグメントとして付加してリダイレクト
-  // これによりchrome.identity.launchWebAuthFlowがトークンを取得可能
-  const redirectUrl = new URL(req.url);
-  redirectUrl.search = "";
+  // chrome.identity.launchWebAuthFlow がこのURLを受け取る
+  const redirectUrl = new URL(extensionRedirect);
   redirectUrl.hash = [
     `access_token=${encodeURIComponent(tokenData.access_token || "")}`,
     `token_type=${encodeURIComponent(tokenData.token_type || "")}`,
   ].join("&");
 
-  return new Response(html, {
-    status: 200,
+  // 302リダイレクトで拡張機能のURLに直接リダイレクト
+  return new Response(null, {
+    status: 302,
     headers: {
-      "Content-Type": "text/html",
-      // フラグメント付きURLにリダイレクト
-      Refresh: `0; url=${redirectUrl.toString()}`,
+      Location: redirectUrl.toString(),
     },
   });
 };

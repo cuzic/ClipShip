@@ -7,7 +7,7 @@ import { ResultAsync } from "neverthrow";
 import { getStorageData, setStorageData } from "./storage";
 
 // Netlify Functions の URL（本番環境にデプロイ後に更新）
-const OAUTH_BASE_URL = "https://clipship-oauth.netlify.app";
+const OAUTH_BASE_URL = "https://pastehost-oauth.netlify.app";
 
 /**
  * OAuth エラー
@@ -34,25 +34,34 @@ interface AuthUrlResponse {
 export function startNetlifyOAuth(): ResultAsync<string, NetlifyOAuthError> {
   return ResultAsync.fromPromise(
     (async () => {
-      // 1. Netlify Function から認可URL取得
-      const authResponse = await fetch(
+      // 1. 拡張機能のリダイレクトURLを取得
+      const extensionRedirectUrl = chrome.identity.getRedirectURL("callback");
+
+      // 2. Netlify Function から認可URL取得（拡張機能のリダイレクトURLを渡す）
+      const authRequestUrl = new URL(
         `${OAUTH_BASE_URL}/api/netlify-oauth-auth`,
       );
+      authRequestUrl.searchParams.set(
+        "extension_redirect",
+        extensionRedirectUrl,
+      );
+
+      const authResponse = await fetch(authRequestUrl.toString());
       if (!authResponse.ok) {
         throw new Error("Failed to get authorization URL");
       }
       const { authUrl }: AuthUrlResponse = await authResponse.json();
 
-      // 2. chrome.identity.launchWebAuthFlow で OAuth フロー開始
+      // 3. chrome.identity.launchWebAuthFlow で OAuth フロー開始
       const redirectUrl = await launchOAuthFlow(authUrl);
 
-      // 3. リダイレクトURLからトークンを抽出
+      // 4. リダイレクトURLからトークンを抽出
       const accessToken = extractTokenFromUrl(redirectUrl);
       if (!accessToken) {
         throw new Error("Failed to extract access token from redirect URL");
       }
 
-      // 4. ストレージに保存
+      // 5. ストレージに保存
       await setStorageData("netlifyOAuthToken", accessToken);
 
       return accessToken;

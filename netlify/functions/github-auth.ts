@@ -29,12 +29,29 @@ export default async (req: Request) => {
     );
   }
 
-  // CSRF対策用の署名付き state パラメータを生成
-  const state = await createSignedState(stateSecret);
+  // 拡張機能のリダイレクトURLを取得
+  const url = new URL(req.url);
+  const extensionRedirect = url.searchParams.get("extension_redirect");
+  if (!extensionRedirect) {
+    return new Response(
+      JSON.stringify({ error: "Missing extension_redirect parameter" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // CSRF対策用の署名付き state パラメータを生成（extensionRedirect を含む）
+  const state = await createSignedState(stateSecret, extensionRedirect);
+
+  // コールバックURL（redirect_uri にクエリパラメータを含めない）
+  const redirectUri = `${url.origin}/api/github-callback`;
 
   // GitHub OAuth認可URL生成
   const authUrl = new URL("https://github.com/login/oauth/authorize");
   authUrl.searchParams.set("client_id", clientId);
+  authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("scope", "gist");
   authUrl.searchParams.set("state", state);
 

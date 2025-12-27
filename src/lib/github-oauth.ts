@@ -7,7 +7,7 @@ import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { getStorageData, setStorageData } from "./storage";
 
 // Netlify Functions の URL（本番環境にデプロイ後に更新）
-const OAUTH_BASE_URL = "https://clipship-oauth.netlify.app";
+const OAUTH_BASE_URL = "https://pastehost-oauth.netlify.app";
 
 /**
  * OAuth エラー
@@ -34,20 +34,25 @@ interface AuthUrlResponse {
 export function startGitHubOAuth(): ResultAsync<string, OAuthError> {
   return ResultAsync.fromPromise(
     (async () => {
-      // 1. Netlify Function から認可URL取得
-      const authResponse = await fetch(`${OAUTH_BASE_URL}/api/github-auth`);
+      // 1. 拡張機能のリダイレクトURLを取得
+      const extensionRedirectUrl = chrome.identity.getRedirectURL("callback");
+
+      // 2. Netlify Function から認可URL取得（拡張機能のリダイレクトURLを渡す）
+      const authRequestUrl = new URL(`${OAUTH_BASE_URL}/api/github-auth`);
+      authRequestUrl.searchParams.set(
+        "extension_redirect",
+        extensionRedirectUrl,
+      );
+
+      const authResponse = await fetch(authRequestUrl.toString());
       if (!authResponse.ok) {
         throw new Error("Failed to get authorization URL");
       }
-      const { authUrl, state }: AuthUrlResponse = await authResponse.json();
-
-      // 2. コールバックURLを設定（Netlify Functionのcallbackエンドポイント）
-      const callbackUrl = `${OAUTH_BASE_URL}/api/github-callback`;
-      const fullAuthUrl = new URL(authUrl);
-      fullAuthUrl.searchParams.set("redirect_uri", callbackUrl);
+      const { authUrl }: AuthUrlResponse = await authResponse.json();
 
       // 3. chrome.identity.launchWebAuthFlow で OAuth フロー開始
-      const redirectUrl = await launchOAuthFlow(fullAuthUrl.toString());
+      // authUrl にはすでに redirect_uri と state が含まれている
+      const redirectUrl = await launchOAuthFlow(authUrl);
 
       // 4. リダイレクトURLからトークンを抽出
       const accessToken = extractTokenFromUrl(redirectUrl);
