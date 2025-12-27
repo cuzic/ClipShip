@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PasteHost - Create Table of Contents</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      color: #333;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 13px;
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: #0066cc;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: #0052a3;
+    }
+
+    .btn-primary:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background-color: #e0e0e0;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .panel {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 400px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-count {
+      font-weight: normal;
+      color: #999;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+
+    /* 履歴リスト（左パネル） */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .history-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .history-item.selected {
+      background-color: #e3f2fd;
+      border-color: #90caf9;
+    }
+
+    .history-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .history-item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-item-title {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item-url {
+      font-size: 11px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .provider-badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .provider-badge.netlify { background-color: #00AD9F; }
+    .provider-badge.vercel { background-color: #000; }
+    .provider-badge.cloudflare { background-color: #F38020; }
+    .provider-badge.gist { background-color: #333; }
+
+    /* 選択済みリスト（右パネル） */
+    .selected-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 200px;
+    }
+
+    .selected-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      background: white;
+      cursor: grab;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+
+    .selected-item:active {
+      cursor: grabbing;
+    }
+
+    .selected-item.dragging {
+      opacity: 0.5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .selected-item.drag-over {
+      border-color: #0066cc;
+      background-color: #f0f7ff;
+    }
+
+    .drag-handle {
+      color: #999;
+      font-size: 16px;
+      cursor: grab;
+    }
+
+    .selected-item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .selected-item-title {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selected-item-url {
+      font-size: 11px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-remove {
+      padding: 4px 8px;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .btn-remove:hover {
+      background: #fee;
+      border-color: #fcc;
+      color: #c00;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+      font-size: 13px;
+    }
+
+    #status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+
+    #status.success {
+      display: block;
+      background: #e6f4ea;
+      color: #1e7e34;
+    }
+
+    #status.error {
+      display: block;
+      background: #fce8e6;
+      color: #c5221f;
+    }
+
+    #status.loading {
+      display: block;
+      background: #e8f0fe;
+      color: #1a73e8;
+    }
+
+    #status a {
+      color: inherit;
+      font-weight: 500;
+    }
+
+    .footer-links {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .footer-links a {
+      color: #6a737d;
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      color: #0066cc;
+      text-decoration: underline;
+    }
+
+    .search-box {
+      margin-bottom: 12px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #0066cc;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    📑 Create Table of Contents
+    <div class="header-actions">
+      <button id="btn-deploy" class="btn btn-primary" disabled>Deploy TOC</button>
+    </div>
+  </h1>
+
+  <div class="section">
+    <div class="form-group">
+      <label for="toc-title">Page Title</label>
+      <input type="text" id="toc-title" placeholder="My Page Collection">
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- 左パネル: 履歴から選択 -->
+    <div class="panel">
+      <div class="panel-title">
+        Deploy History
+        <span class="panel-count" id="history-count"></span>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Search...">
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="empty-state">Loading history...</div>
+      </div>
+    </div>
+
+    <!-- 右パネル: 選択済み（並び替え可能） -->
+    <div class="panel">
+      <div class="panel-title">
+        Selected Pages
+        <span class="panel-count" id="selected-count">0 selected</span>
+      </div>
+      <div id="selected-list" class="selected-list">
+        <div class="empty-state">Select pages from history<br>or drag to reorder</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="footer-links">
+    <a href="popup.html">Deploy</a>
+    <a href="history.html" target="_blank">History</a>
+    <a href="options.html" target="_blank">Options</a>
+  </div>
+
+  <script src="toc.js"></script>
+</body>
+</html>
