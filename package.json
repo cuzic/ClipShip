@@ -1,11 +1,11 @@
 {
-  "name": "clipship",
+  "name": "pastehost",
   "version": "1.0.0",
   "type": "module",
   "description": "Deploy clipboard HTML to Netlify or GitHub Gist instantly",
   "scripts": {
-    "dev": "bun build src/popup.ts src/options.ts src/history.ts --outdir dist --watch",
-    "build": "bun build src/popup.ts src/options.ts src/history.ts --outdir dist --minify && cp -r public/* dist/",
+    "dev": "bun build src/popup.ts src/options.ts src/history.ts src/toc.ts src/gist-manager.ts --outdir dist --watch",
+    "build": "bun build src/popup.ts src/options.ts src/history.ts src/toc.ts src/gist-manager.ts --outdir dist --minify && cp -r public/* dist/",
     "lint": "biome check .",
     "lint:neverthrow": "eslint --ext .ts src/",
     "lint:ext": "web-ext lint --source-dir dist",
@@ -43,7 +43,7 @@
     "markdown-it-emoji": "^3.0.0",
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "nanoid": "^5.0.0",
+    "nanoid": "^5.1.6",
     "neverthrow": "^8.2.0",
     "zod": "^3.23.0"
   }

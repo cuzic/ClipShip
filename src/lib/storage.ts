@@ -55,12 +55,14 @@ type StorageKeys =
   | "githubOAuthToken"
   | "netlifySiteId"
   | "vercelToken"
+  | "vercelOAuthToken"
   | "vercelProjectId"
   | "cloudflareToken"
   | "cloudflareAccountId"
   | "cloudflareProjectId"
   | "defaultProvider"
-  | "cssTheme";
+  | "cssTheme"
+  | "gistId";
 
 /**
  * ストレージからデータを取得する
@@ -135,7 +137,7 @@ export function getMultipleStorageData(
  */
 export async function getDefaultProvider(): Promise<DeployProvider> {
   const provider = await getStorageData("defaultProvider");
-  return (provider as DeployProvider) || "netlify";
+  return (provider as DeployProvider) || "gist";
 }
 
 /**
