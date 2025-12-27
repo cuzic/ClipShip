@@ -32,12 +32,13 @@ export const VercelDeploymentSchema = z.object({
 export type VercelDeployment = z.infer<typeof VercelDeploymentSchema>;
 
 /**
- * Vercel ファイルアップロードレスポンスのスキーマ
+ * Vercel デプロイメントファイルのスキーマ
  */
-export const VercelFileUploadSchema = z.object({
-  sha: z.string(),
-  size: z.number(),
+export const VercelDeploymentFileSchema = z.object({
+  name: z.string(),
+  type: z.enum(["file", "directory", "symlink", "lambda"]),
+  uid: z.string().optional(),
   contentType: z.string().optional(),
 });
 
-export type VercelFileUpload = z.infer<typeof VercelFileUploadSchema>;
+export type VercelDeploymentFile = z.infer<typeof VercelDeploymentFileSchema>;

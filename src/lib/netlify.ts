@@ -22,7 +22,7 @@ const NETLIFY_API_URL = "https://api.netlify.com/api/v1/sites";
 const NETLIFY_DEPLOYS_API_URL = "https://api.netlify.com/api/v1/deploys";
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 60;
-const CLIPSHIP_SITE_PREFIX = "clipship-";
+const PASTEHOST_SITE_PREFIX = "pastehost-";
 
 // 共通エラーマッパー
 const mapUnknownError = createUnknownErrorMapper("Netlify");
@@ -46,6 +46,17 @@ const DeploySchema = z.object({
 });
 
 type Deploy = z.infer<typeof DeploySchema>;
+
+/**
+ * デプロイファイル一覧のスキーマ
+ */
+const DeployFileSchema = z.object({
+  id: z.string(),
+  path: z.string(),
+  sha: z.string(),
+});
+
+type DeployFile = z.infer<typeof DeployFileSchema>;
 
 /**
  * ファイル情報の型
@@ -82,16 +93,16 @@ function listSites(token: string): ResultAsync<NetlifySite[], DeployError> {
 }
 
 /**
- * ClipShip 用のサイトを検索
+ * PasteHost 用のサイトを検索
  */
-function findClipShipSite(
+function findPasteHostSite(
   token: string,
 ): ResultAsync<NetlifySite | null, DeployError> {
   return listSites(token).map((sites) => {
-    const clipshipSite = sites.find((site) =>
-      site.name.startsWith(CLIPSHIP_SITE_PREFIX),
+    const pastehostSite = sites.find((site) =>
+      site.name.startsWith(PASTEHOST_SITE_PREFIX),
     );
-    return clipshipSite ?? null;
+    return pastehostSite ?? null;
   });
 }
 
@@ -114,12 +125,12 @@ function getSite(
 }
 
 /**
- * 新規 ClipShip サイトを作成
+ * 新規 PasteHost サイトを作成
  */
-function createClipShipSite(
+function createPasteHostSite(
   token: string,
 ): ResultAsync<NetlifySite, DeployError> {
-  const siteName = `${CLIPSHIP_SITE_PREFIX}${nanoid()}`;
+  const siteName = `${PASTEHOST_SITE_PREFIX}${nanoid()}`;
 
   return ResultAsync.fromPromise(
     ky
@@ -144,15 +155,33 @@ function createNetlifySiteManager(token: string): ProjectManager<NetlifySite> {
     getFromStorage: () => getStorageData("netlifySiteId"),
     saveToStorage: (id: string) => setStorageData("netlifySiteId", id),
     getById: (id: string) => getSite(token, id),
-    findExisting: () => findClipShipSite(token),
-    create: () => createClipShipSite(token),
+    findExisting: () => findPasteHostSite(token),
+    create: () => createPasteHostSite(token),
   };
 }
 
 /**
- * ClipShip サイトを取得または作成
+ * サイトの現在のデプロイからファイル一覧を取得
  */
-function getOrCreateClipShipSite(
+function getSiteFiles(
+  token: string,
+  siteId: string,
+): ResultAsync<DeployFile[], DeployError> {
+  return ResultAsync.fromPromise(
+    ky
+      .get(`${NETLIFY_API_URL}/${siteId}/files`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .json()
+      .then((response) => z.array(DeployFileSchema).parse(response)),
+    mapUnknownError,
+  ).orElse(() => okAsync([])); // ファイルがない場合は空配列を返す
+}
+
+/**
+ * PasteHost サイトを取得または作成
+ */
+function getOrCreatePasteHostSite(
   token: string,
 ): ResultAsync<NetlifySite, DeployError> {
   return getOrCreateProject(createNetlifySiteManager(token));
@@ -232,34 +261,6 @@ async function pollDeployStatus(
 }
 
 /**
- * File Digest API でデプロイを作成
- */
-function createDigestDeploy(
-  token: string,
-  siteId: string,
-  files: FileInfo[],
-): ResultAsync<Deploy, DeployError> {
-  const filesDigest: Record<string, string> = {};
-  for (const file of files) {
-    filesDigest[`/${file.path}`] = file.hash;
-  }
-
-  return ResultAsync.fromPromise(
-    ky
-      .post(`${NETLIFY_API_URL}/${siteId}/deploys`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        json: { files: filesDigest },
-      })
-      .json()
-      .then((response) => DeploySchema.parse(response)),
-    mapUnknownError,
-  );
-}
-
-/**
  * 必要なファイルをアップロード
  */
 function uploadRequiredFiles(
@@ -289,6 +290,35 @@ function uploadRequiredFiles(
 }
 
 /**
+ * パスを正規化（先頭に / を付ける）
+ */
+function normalizePath(path: string): string {
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+/**
+ * 既存ファイルのダイジェストを取得し、新しいファイルとマージ
+ */
+function createMergedFilesDigest(
+  existingFiles: DeployFile[],
+  newFiles: FileInfo[],
+): Record<string, string> {
+  const filesDigest: Record<string, string> = {};
+
+  // 既存ファイルを追加（パスを正規化）
+  for (const file of existingFiles) {
+    filesDigest[normalizePath(file.path)] = file.sha;
+  }
+
+  // 新しいファイルを追加（上書き、パスを正規化）
+  for (const file of newFiles) {
+    filesDigest[normalizePath(file.path)] = file.hash;
+  }
+
+  return filesDigest;
+}
+
+/**
  * Netlifyにデプロイする
  */
 export function deployToNetlify(
@@ -304,43 +334,74 @@ export function deployToNetlify(
 
   onProgress?.("Preparing site...");
 
-  return getOrCreateClipShipSite(token).andThen((site) =>
-    // ファイルハッシュを計算
-    ResultAsync.fromSafePromise(sha1(processed.content)).andThen((fileHash) => {
-      const files: FileInfo[] = [
-        { path: filePath, content: processed.content, hash: fileHash },
-      ];
+  return getOrCreatePasteHostSite(token).andThen((site) =>
+    // 既存ファイル一覧を取得
+    getSiteFiles(token, site.id).andThen((existingFiles) =>
+      // ファイルハッシュを計算
+      ResultAsync.fromSafePromise(sha1(processed.content)).andThen(
+        (fileHash) => {
+          const newFiles: FileInfo[] = [
+            { path: filePath, content: processed.content, hash: fileHash },
+          ];
 
-      onProgress?.("Creating deploy...");
+          // 既存ファイルと新しいファイルをマージしてデプロイ
+          const filesDigest = createMergedFilesDigest(existingFiles, newFiles);
 
-      return createDigestDeploy(token, site.id, files)
-        .andThen((deploy) => {
-          // 必要なファイルをアップロード
-          if (deploy.required && deploy.required.length > 0) {
-            onProgress?.("Uploading files...");
-            return uploadRequiredFiles(
-              token,
-              deploy.id,
-              files,
-              deploy.required,
-            ).map(() => deploy);
-          }
-          return okAsync(deploy);
-        })
-        .andThen((deploy) => {
-          onProgress?.("Processing...");
-          return waitForDeployReady(token, deploy.id, (state) =>
-            onProgress?.(`Processing (${state})...`),
-          );
-        })
-        .map(() => {
-          const baseUrl = site.ssl_url ?? site.url;
-          return {
-            siteId: site.id,
-            siteName: site.name,
-            deployUrl: `${baseUrl}/${subdir}/${processed.filename}`,
-          };
-        });
-    }),
+          onProgress?.("Creating deploy...");
+
+          return createDigestDeployWithMergedFiles(token, site.id, filesDigest)
+            .andThen((deploy) => {
+              // 必要なファイルをアップロード
+              if (deploy.required && deploy.required.length > 0) {
+                onProgress?.("Uploading files...");
+                return uploadRequiredFiles(
+                  token,
+                  deploy.id,
+                  newFiles,
+                  deploy.required,
+                ).map(() => deploy);
+              }
+              return okAsync(deploy);
+            })
+            .andThen((deploy) => {
+              onProgress?.("Processing...");
+              return waitForDeployReady(token, deploy.id, (state) =>
+                onProgress?.(`Processing (${state})...`),
+              );
+            })
+            .map(() => {
+              const baseUrl = site.ssl_url ?? site.url;
+              return {
+                siteId: site.id,
+                siteName: site.name,
+                deployUrl: `${baseUrl}/${subdir}/${processed.filename}`,
+              };
+            });
+        },
+      ),
+    ),
+  );
+}
+
+/**
+ * マージ済みファイルダイジェストでデプロイを作成
+ */
+function createDigestDeployWithMergedFiles(
+  token: string,
+  siteId: string,
+  filesDigest: Record<string, string>,
+): ResultAsync<Deploy, DeployError> {
+  return ResultAsync.fromPromise(
+    ky
+      .post(`${NETLIFY_API_URL}/${siteId}/deploys`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        json: { files: filesDigest },
+      })
+      .json()
+      .then((response) => DeploySchema.parse(response)),
+    mapUnknownError,
   );
 }

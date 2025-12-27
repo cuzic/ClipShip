@@ -5,6 +5,8 @@
 
 import {
   type CloudflarePagesDeployment,
+  type CloudflarePagesDeploymentFile,
+  CloudflarePagesDeploymentFilesResponseSchema,
   CloudflarePagesDeploymentResponseSchema,
   type CloudflarePagesProject,
   CloudflarePagesProjectListResponseSchema,
@@ -13,6 +15,7 @@ import {
 import ky from "ky";
 import { nanoid } from "nanoid";
 import { ResultAsync } from "neverthrow";
+import { z } from "zod";
 import {
   type ProjectManager,
   createUnknownErrorMapper,
@@ -24,7 +27,7 @@ import { processContent } from "./html";
 import { type CssTheme, getStorageData, setStorageData } from "./storage";
 
 const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
-const CLIPSHIP_PROJECT_PREFIX = "clipship-";
+const PASTEHOST_PROJECT_PREFIX = "pastehost-";
 
 // 共通エラーマッパー
 const mapUnknownError = createUnknownErrorMapper("Cloudflare");
@@ -54,17 +57,17 @@ function listProjects(
 }
 
 /**
- * ClipShip 用のプロジェクトを検索
+ * PasteHost 用のプロジェクトを検索
  */
-function findClipShipProject(
+function findPasteHostProject(
   token: string,
   accountId: string,
 ): ResultAsync<CloudflarePagesProject | null, DeployError> {
   return listProjects(token, accountId).map((projects) => {
-    const clipshipProject = projects.find((project) =>
-      project.name.startsWith(CLIPSHIP_PROJECT_PREFIX),
+    const pastehostProject = projects.find((project) =>
+      project.name.startsWith(PASTEHOST_PROJECT_PREFIX),
     );
-    return clipshipProject ?? null;
+    return pastehostProject ?? null;
   });
 }
 
@@ -97,13 +100,13 @@ function getProject(
 }
 
 /**
- * 新規 ClipShip プロジェクトを作成
+ * 新規 PasteHost プロジェクトを作成
  */
-function createClipShipProject(
+function createPasteHostProject(
   token: string,
   accountId: string,
 ): ResultAsync<CloudflarePagesProject, DeployError> {
-  const projectName = `${CLIPSHIP_PROJECT_PREFIX}${nanoid()}`;
+  const projectName = `${PASTEHOST_PROJECT_PREFIX}${nanoid()}`;
 
   return ResultAsync.fromPromise(
     ky
@@ -141,15 +144,15 @@ function createCloudflareProjectManager(
     saveToStorage: (name: string) =>
       setStorageData("cloudflareProjectId", name),
     getById: (name: string) => getProject(token, accountId, name),
-    findExisting: () => findClipShipProject(token, accountId),
-    create: () => createClipShipProject(token, accountId),
+    findExisting: () => findPasteHostProject(token, accountId),
+    create: () => createPasteHostProject(token, accountId),
   };
 }
 
 /**
- * ClipShip プロジェクトを取得または作成
+ * PasteHost プロジェクトを取得または作成
  */
-function getOrCreateClipShipProject(
+function getOrCreatePasteHostProject(
   token: string,
   accountId: string,
 ): ResultAsync<CloudflarePagesProject, DeployError> {
@@ -157,28 +160,116 @@ function getOrCreateClipShipProject(
 }
 
 /**
- * Direct Upload でデプロイを作成
+ * プロジェクトの最新デプロイからファイル一覧を取得
  */
-function createDeployment(
+function getLatestDeploymentFiles(
   token: string,
   accountId: string,
   projectName: string,
-  filePath: string,
-  content: string,
-  fileHash: string,
+): ResultAsync<CloudflarePagesDeploymentFile[], DeployError> {
+  // まずプロジェクトの最新デプロイを取得
+  return ResultAsync.fromPromise(
+    ky
+      .get(
+        `${CLOUDFLARE_API_URL}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          searchParams: { per_page: 1 },
+        },
+      )
+      .json()
+      .then((response) => {
+        const parsed = z
+          .object({
+            success: z.boolean(),
+            result: z.array(z.object({ id: z.string() })),
+          })
+          .parse(response);
+        if (!parsed.success || parsed.result.length === 0) {
+          return [];
+        }
+        return parsed.result;
+      }),
+    mapUnknownError,
+  ).andThen((deployments) => {
+    if (deployments.length === 0) {
+      return ResultAsync.fromSafePromise(Promise.resolve([]));
+    }
+
+    const latestDeploymentId = deployments[0].id;
+
+    // 最新デプロイのファイル一覧を取得
+    return ResultAsync.fromPromise(
+      ky
+        .get(
+          `${CLOUDFLARE_API_URL}/accounts/${accountId}/pages/projects/${projectName}/deployments/${latestDeploymentId}/files`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        )
+        .json()
+        .then((response) => {
+          const parsed =
+            CloudflarePagesDeploymentFilesResponseSchema.parse(response);
+          if (!parsed.success) {
+            return [];
+          }
+          return parsed.result;
+        }),
+      mapUnknownError,
+    ).orElse(() => ResultAsync.fromSafePromise(Promise.resolve([])));
+  });
+}
+
+/**
+ * パスを正規化（先頭に / を付ける）
+ */
+function normalizePath(path: string): string {
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+/**
+ * 既存ファイルと新しいファイルをマージしてマニフェストを作成
+ */
+function createMergedManifest(
+  existingFiles: CloudflarePagesDeploymentFile[],
+  newFilePath: string,
+  newFileHash: string,
+): Record<string, string> {
+  const manifest: Record<string, string> = {};
+
+  // 既存ファイルを追加（パスを正規化）
+  for (const file of existingFiles) {
+    manifest[normalizePath(file.path)] = file.hash;
+  }
+
+  // 新しいファイルを追加（上書き、パスを正規化）
+  manifest[normalizePath(newFilePath)] = newFileHash;
+
+  return manifest;
+}
+
+/**
+ * Direct Upload でデプロイを作成（既存ファイルをマージ）
+ */
+function createDeploymentWithMergedFiles(
+  token: string,
+  accountId: string,
+  projectName: string,
+  manifest: Record<string, string>,
+  newFilePath: string,
+  newFileContent: string,
+  newFileHash: string,
 ): ResultAsync<CloudflarePagesDeployment, DeployError> {
   // FormData を構築
   const formData = new FormData();
 
-  // manifest: ファイルパス → ハッシュ のマッピング
-  const manifest: Record<string, string> = {
-    [`/${filePath}`]: fileHash,
-  };
+  // マニフェストを追加
   formData.append("manifest", JSON.stringify(manifest));
 
-  // ファイルをアップロード (ハッシュ値をキーとして)
-  const fileBlob = new Blob([content], { type: "text/html" });
-  formData.append(fileHash, fileBlob, filePath);
+  // 新しいファイルのみアップロード (ハッシュ値をキーとして)
+  const fileBlob = new Blob([newFileContent], { type: "text/html" });
+  formData.append(newFileHash, fileBlob, newFilePath);
 
   return ResultAsync.fromPromise(
     ky
@@ -229,25 +320,37 @@ export function deployToCloudflare(
 
   onProgress?.("Preparing project...");
 
-  return getOrCreateClipShipProject(token, accountId).andThen((project) =>
-    // ファイルハッシュを計算
-    ResultAsync.fromSafePromise(sha256(processed.content)).andThen(
-      (fileHash) => {
-        onProgress?.("Creating deployment...");
+  return getOrCreatePasteHostProject(token, accountId).andThen((project) =>
+    // 既存ファイル一覧を取得
+    getLatestDeploymentFiles(token, accountId, project.name).andThen(
+      (existingFiles) =>
+        // ファイルハッシュを計算
+        ResultAsync.fromSafePromise(sha256(processed.content)).andThen(
+          (fileHash) => {
+            // 既存ファイルと新しいファイルをマージしてマニフェストを作成
+            const manifest = createMergedManifest(
+              existingFiles,
+              filePath,
+              fileHash,
+            );
 
-        return createDeployment(
-          token,
-          accountId,
-          project.name,
-          filePath,
-          processed.content,
-          fileHash,
-        ).map((deployment) => ({
-          projectId: project.id,
-          projectName: project.name,
-          deployUrl: `${deployment.url}/${filePath}`,
-        }));
-      },
+            onProgress?.("Creating deployment...");
+
+            return createDeploymentWithMergedFiles(
+              token,
+              accountId,
+              project.name,
+              manifest,
+              filePath,
+              processed.content,
+              fileHash,
+            ).map((deployment) => ({
+              projectId: project.id,
+              projectName: project.name,
+              deployUrl: `${deployment.url}/${filePath}`,
+            }));
+          },
+        ),
     ),
   );
 }

@@ -73,3 +73,22 @@ export const CloudflarePagesDeploymentResponseSchema = CloudflareResponseSchema(
  */
 export const CloudflarePagesProjectListResponseSchema =
   CloudflareResponseSchema(z.array(CloudflarePagesProjectSchema));
+
+/**
+ * Cloudflare Pages デプロイメントファイルのスキーマ
+ */
+export const CloudflarePagesDeploymentFileSchema = z.object({
+  id: z.string(),
+  path: z.string(),
+  hash: z.string(),
+});
+
+export type CloudflarePagesDeploymentFile = z.infer<
+  typeof CloudflarePagesDeploymentFileSchema
+>;
+
+/**
+ * Cloudflare Pages デプロイメントファイル一覧レスポンスのスキーマ
+ */
+export const CloudflarePagesDeploymentFilesResponseSchema =
+  CloudflareResponseSchema(z.array(CloudflarePagesDeploymentFileSchema));
